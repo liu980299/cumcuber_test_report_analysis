@@ -56,8 +56,7 @@ def getScenario(case_result):
                         case_result[key.strip(" \n")] = value.strip(" \n")
                     else:
                         case_result["tags"]=line.split(",")
-
-    print(case_result)                                
+                              
 
 keys = ["PORTAL URL","PORTAL VERSION"]
 cucumber_test ="Cluecumber_20Test_20Report/index.html"
