@@ -77,7 +77,7 @@ if __name__ == "__main__":
         dictWriter.writeheader()
         res[key].sort(key=lambda x:x["build"])
         dictWriter.writerows(res[key])     
-
+    fieldnames.remove('color')
     context = {"fields":fieldnames,"scenarios":scenario_list}
     template = open("analysis.template","r").read()
     html = Template(template).render(Context(context))
