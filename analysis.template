@@ -1,34 +1,16 @@
 <body>
-<STYLE>
-    BODY, TABLE, TD, TH, P {
-    font-family:Verdana,Helvetica,sans serif;
-    font-size:11px;
-    }
-    h1 { color:black; }
-    h2 { color:black; }
-    h3 { color:black; }
-    TABLE,TD,TH {bolder:solid 1px black; }
-    TABLE,img{width:100%}
-    TD.bg1 { color:white; background-color:#ff1a1a; font-size:120% }
-    TD.bg2 { color:white; background-color:#4040FF; font-size:110% }
-    TD.bg3 { color:white; background-color:#8080FF; }
-    tr.failed { color:red; }
-    tr.warning { color:orange}
-    tr.passed { color:green; }
 
-    a.console { font-family:Courier New; }
-</STYLE>
     <H1>Canary Test Result Summary</H1>
     {% for scenario in scenarios %}
     <H2>{{scenario.name}}</H2>
     <img src="{{scenario.image}}"></img>
-    <Table border="1">
+    <Table border="1" style="width:100%">
         <TR>{% for field in fields%}
                 <th>{{field}}</th>
             {% endfor %}
         </TR>
         {% for row in scenario.rows %}
-        <TR class="{{row.result}}">
+        <TR style="color:{{row|get_item:'color'}}">
             {% for field in fields %}
             <TD >{{row|get_item:field}}</TD>
             {%endfor%}

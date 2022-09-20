@@ -62,6 +62,10 @@ if __name__ == "__main__":
                                     else:
                                         scenario_item[key] = step_info[key]
                                 break
+                        if scenario_item["result"] == "failed":
+                            scenario_item["color"] = "red"
+                        else:
+                            scenario_item["color"] = "green"
                         scenario_res.append(scenario_item)
     scenario_list=[]
     for key in res:
