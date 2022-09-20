@@ -1,0 +1,38 @@
+<body>
+<STYLE>
+    BODY, TABLE, TD, TH, P {
+    font-family:Verdana,Helvetica,sans serif;
+    font-size:11px;
+    color:black;
+    }
+    h1 { color:black; }
+    h2 { color:black; }
+    h3 { color:black; }
+    TABLE,TD,TH {bolder:solid 1px black; }
+    TD.bg1 { color:white; background-color:#ff1a1a; font-size:120% }
+    TD.bg2 { color:white; background-color:#4040FF; font-size:110% }
+    TD.bg3 { color:white; background-color:#8080FF; }
+    a.failed { color:red; }
+a.fatal {     font-weight: bold;color:red;}
+    a.warning { color:orange}
+    a.passed { color:green; }
+a.great { font-weight: bold;color:green; }
+    a.console { font-family:Courier New; }
+</STYLE>
+    <H1>MCP Smoke test result summary</H1>
+    <Table border="1">
+        <TR><th>Job Name</th>
+            {% for env in envs%}
+                <th>{{env}}</th>
+            {% endfor %}
+        </TR>
+        {% for job_test in test_matrix %}
+        <TR>
+            <TD class="job">{{job_test.name}}</TD>
+            {% for test_result in job_test.tests %}
+                {% if test_result %}<TD ><a style="{{test_result.style}}" class="strong" href="{{test_result.url}}">{{test_result.result}}({{test_result.failCount}}/{{test_result.totalCount}}){{test_result.timestamp}}</a>{% else %}<TD class="not_deployed">Not Deployed{% endif %}</TD>
+            {% endfor %}
+        </TR>
+        {% endfor %}
+    </Table>
+</body>
