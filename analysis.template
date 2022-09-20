@@ -8,6 +8,7 @@
     h2 { color:black; }
     h3 { color:black; }
     TABLE,TD,TH {bolder:solid 1px black; }
+    TABLE,img{width:100%}
     TD.bg1 { color:white; background-color:#ff1a1a; font-size:120% }
     TD.bg2 { color:white; background-color:#4040FF; font-size:110% }
     TD.bg3 { color:white; background-color:#8080FF; }

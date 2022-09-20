@@ -7,7 +7,7 @@ import django
 from django.conf import settings
 from django.template import Template,Context
 from django.template.defaulttags import register
-import argparse,os
+import argparse,os,urllib.parse
 
 
 parser = argparse.ArgumentParser()
@@ -65,7 +65,8 @@ if __name__ == "__main__":
                         scenario_res.append(scenario_item)
     scenario_list=[]
     for key in res:
-        scenario_list.append({"name":key, "rows":res[key],"image":"./"+key+".jpg"})
+        img_url=urllib.parse.quote_plus(key)
+        scenario_list.append({"name":key, "rows":res[key],"image":"./"+img_url+".jpg"})
         fieldnames =[field for field in res[key][0].keys()]
         fieldnames.sort()
         dictWriter = csv.DictWriter(open(key+".csv","w",newline=''),fieldnames) 
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     template = open("analysis.template","r").read()
     html = Template(template).render(Context(context))
     open("index.html","w").write(html)
-
+    plt.figure(figsize=(10.195,3.841, ), dpi=100)
     for scenario in res:
         plt.clf()
         xpoints = np.array([item["build"] for item in res[scenario]])      
