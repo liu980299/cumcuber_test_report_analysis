@@ -65,7 +65,7 @@ if __name__ == "__main__":
                         scenario_res.append(scenario_item)
     scenario_list=[]
     for key in res:
-        img_url=urllib.parse.quote_plus(key)
+        img_url=urllib.parse.quote(key)
         scenario_list.append({"name":key, "rows":res[key],"image":"./"+img_url+".jpg"})
         fieldnames =[field for field in res[key][0].keys()]
         fieldnames.sort()
