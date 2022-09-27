@@ -1,21 +1,24 @@
 <body>
 
     <H1>Canary Test Result Summary</H1>
-    {% for scenario in scenarios %}
-    <H2>{{scenario.name}}</H2>
-    <img src="{{scenario.image}}"></img>
-    <Table border="1" style="width:100%">
-        <TR>{% for field in fields%}
-                <th>{{field}}</th>
-            {% endfor %}
-        </TR>
-        {% for row in scenario.rows %}
-        <TR style="color:{{row|get_item:'color'}}">
-            {% for field in fields %}
-            <TD >{{row|get_item:field}}</TD>
-            {%endfor%}
-        </TR>
+    {% for env in envs %}
+    <H2>{{env}}({{envs|get_item:env|get_item:'URL'}})</H2>
+        {% for scenario in envs|get_item:env|get_item:'scenarios'%}
+            <H4>{{scenario.name}}</H4>
+            <img src="{{scenario.image}}"></img>
+            <Table border="1" style="width:100%">
+                <TR>{% for field in fields%}
+                        <th>{{field}}</th>
+                    {% endfor %}
+                </TR>
+                {% for row in scenario.rows %}
+                <TR style="color:{{row|get_item:'color'}}">
+                    {% for field in fields %}
+                    <TD >{{row|get_item:field}}</TD>
+                    {%endfor%}
+                </TR>
+                {% endfor %}
+            </Table>
         {% endfor %}
-    </Table>
     {% endfor %}
 </body>
