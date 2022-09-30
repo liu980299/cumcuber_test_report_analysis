@@ -50,7 +50,7 @@ if __name__ == "__main__":
                     env_res["URL"] = build_res["PORTAL URL"]
 
                 for scenario in build_res["scenarioes"]:
-                    if scenario["scenario"].find(qa_case) >=0:
+                    if scenario["scenario"].find(qa_case) >=0 and 'result'in scenario and not scenario["result"] == "skipped":
                         if scenario["scenario"] not in env_res:
                             env_res[scenario["scenario"]] = []
                         scenario_res = env_res[scenario["scenario"]]
