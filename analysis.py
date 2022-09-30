@@ -50,7 +50,7 @@ if __name__ == "__main__":
                     env_res["URL"] = build_res["PORTAL URL"]
 
                 for scenario in build_res["scenarioes"]:
-                    if scenario["scenario"].find(qa_case) >=0 and 'result'in scenario and not scenario["result"] == "skipped":
+                    if scenario["scenario"].find(qa_case) >=0:
                         if scenario["scenario"] not in env_res:
                             env_res[scenario["scenario"]] = []
                         scenario_res = env_res[scenario["scenario"]]
@@ -72,7 +72,8 @@ if __name__ == "__main__":
                             scenario_item["color"] = "red"
                         else:
                             scenario_item["color"] = "green"
-                        scenario_res.append(scenario_item)
+                        if not scenario_item["result"] == "skipped":
+                            scenario_res.append(scenario_item)
     envs = {}
     for key in res:
         if len(res[key]) > 1:
