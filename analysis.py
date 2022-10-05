@@ -7,13 +7,17 @@ import django
 from django.conf import settings
 from django.template import Template,Context
 from django.template.defaulttags import register
-import argparse,os,urllib.parse
+import argparse,os,urllib.parse,pymsteams
+
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--case",help="QA Case ID",required=True, default="QA-23890")
 parser.add_argument("--step",help="cucumber feature step words", required=True, default="The policy should be saved by")
 parser.add_argument("--input",help="Test Result folder", required=True, default="c:/cucumber-result/")
+parser.add_argument("--teams",help="teams webhook connectors", required=True)
+parser.add_argument("--duration",help="duration (seconds) for notification", required=True,type=int)
+parser.add_argument("--summary",help="duration (seconds) for notification", required=True )
 args = parser.parse_args()
 
 
@@ -33,6 +37,12 @@ def get_item(dictionary, key):
 
 if __name__ == "__main__":
     files = os.listdir(args.input)
+    duration = float(args.duration)
+    summary = args.summary
+    teams = {}
+    for team_str in args.teams.split(","):
+        (env,webhook) = team_str.split("|",1)
+        teams[env] = pymsteams.connectorcard(webhook)
     res = {}
     for file_name in files:
         if file_name.endswith(".json"):
@@ -44,6 +54,10 @@ if __name__ == "__main__":
             qa_case = args.case
             step = args.step
             env_res = res[job_name]
+            lastBuild = ""
+            for build in job_info:
+                if build > lastBuild:
+                    lastBuild = build
             for buildNum in job_info:
                 build_res = job_info[buildNum]
                 if "PORTAL URL" in build_res:
@@ -61,10 +75,19 @@ if __name__ == "__main__":
                             if step_info["name"].find(step) >=0:
                                 for key in step_info:
                                     if key == "duration":
-                                        duration = step_info[key]
-                                        m = re.search('(\d+)m\s*(\d+)s\s*(\d+)ms', duration)
+                                        step_duration = step_info[key]
+                                        m = re.search('(\d+)m\s*(\d+)s\s*(\d+)ms', step_duration)
                                         if m:                                
                                             scenario_item["duration"] = float(m.group(1)) * 60 + float(m.group(2)) + float(m.group(3))/1000
+                                            if scenario_item["build"] == lastBuild and scenario_item["duration"] > duration:
+                                                for env in teams:
+                                                    if build_res["PORTAL URL"].find(env) >=0 :
+                                                        teams[env].title("Policy Loading Exceeding " + str(duration) + " Seconds Warning")
+                                                        teams[env].text(summary + "\n\n" + "Summary : " +  str(scenario_item["duration"]) + " seconds in test run : " + lastBuild
+                                                                        + " for " + scenario_item["version"] + " Portal : " + build_res["PORTAL URL"])
+                                                        teams[env].addLinkButton("Please check step --- " + step_info["name"],scenario["scenario_url"])
+                                                        teams[env].color(mcolor="red")
+                                                        teams[env].send()
                                     else:
                                         scenario_item[key] = step_info[key]
                                 break
