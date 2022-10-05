@@ -83,11 +83,11 @@ if __name__ == "__main__":
                                                 for env in teams:
                                                     if build_res["PORTAL URL"].find(env) >=0 :
                                                         teams[env].title("Policy Loading Exceeding " + str(duration) + " Seconds Warning")
-                                                        teams[env].text(summary + "\n\n" + "Summary : " +  str(scenario_item["duration"]) + " seconds in test run : " + lastBuild
+                                                        teams[env].text(summary + "\n\n" + "Test run : " + lastBuild
                                                                         + " for " + scenario_item["version"] + " Portal : " + build_res["PORTAL URL"])
-                                                        teams[env].addLinkButton("Please check step --- " + step_info["name"],scenario["scenario_url"])
+                                                        teams[env].addLinkButton("Please check step using (" + str(scenario_item["duration"]) + "seconds)" +
+                                                                                 "--- " + step_info["name"],scenario["scenario_url"])
                                                         teams[env].color(mcolor="red")
-                                                        teams[env].send()
                                     else:
                                         scenario_item[key] = step_info[key]
                                 break
@@ -97,6 +97,9 @@ if __name__ == "__main__":
                             scenario_item["color"] = "green"
                         if not scenario_item["result"] == "skipped":
                             scenario_res.append(scenario_item)
+    for env in teams:
+        if "title" in teams[env].payload and len(teams[env].payload["title"].strip()) > 0:
+            teams[env].send()
     envs = {}
     for key in res:
         if len(res[key]) > 1:
