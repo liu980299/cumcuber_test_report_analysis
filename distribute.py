@@ -80,7 +80,7 @@ if __name__ == "__main__":
                                         "version"] + " Portal : " + portal_url
                 team_text += "\n\n**Features:**\n\n"
                 features = env_res["features"]
-                feature_list = features.keys()
+                feature_list = [feature for feature in features.keys()]
                 feature_list.sort()
                 for feature in feature_list:
                     team_text += "|  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
