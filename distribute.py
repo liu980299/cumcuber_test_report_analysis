@@ -82,8 +82,9 @@ if __name__ == "__main__":
                 features = env_res["features"]
                 feature_list = [feature for feature in features.keys()]
                 feature_list.sort()
+                team_text += "\n\n"
                 for feature in feature_list:
-                    team_text += "|  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                    team_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
                 teams[env].text(team_text)
                 teams[env].color(mcolor="red")
         teams[env].send()
