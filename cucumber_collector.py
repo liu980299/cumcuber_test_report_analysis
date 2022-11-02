@@ -69,6 +69,7 @@ parser.add_argument("--passwords",help="passowrd",required=True)
 parser.add_argument("--servers",help="Jenkins Server",required=True)
 parser.add_argument("--jobs", help="job name list and delimiter ','",required=True)
 parser.add_argument("--output",help="output path",required=True)
+parser.add_argument("--runs",help="keep how many runs data",required=True)
 
 args = parser.parse_args()
 
@@ -76,6 +77,7 @@ if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     server_dict = dict(zip(servers,passwords))
+    runs = int(args.runs)
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
@@ -162,8 +164,12 @@ if __name__ == "__main__":
                                         getScenario(case_result)
                                         build_res["scenarioes"].append(case_result)
 
-                    res[build["number"]] = build_res
+                    res[str(build["number"])] = build_res
                 except jenkins.NotFoundException as e :
                     continue
-
-            json.dump(res,open(output_file,"w"),indent=4)
+            keys = [run for run in res]
+            keys.sort(reverse=True)
+            data = {}
+            for run in keys[:runs]:
+                data[run] = res[run]
+            json.dump(data,open(output_file,"w"),indent=4)
