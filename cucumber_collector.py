@@ -58,7 +58,7 @@ def getScenario(case_result):
                         case_result["tags"]=line.split(",")
                               
 
-keys = ["PORTAL URL","PORTAL VERSION"]
+portal_keys = ["PORTAL URL","PORTAL VERSION"]
 cucumber_test ="Cluecumber_20Test_20Report/index.html"
 step_keys=["sequence","name","duration"]
 flags = ["table-row-passed","table-row-failed","table-row-skipped"]
@@ -96,8 +96,13 @@ if __name__ == "__main__":
             output_file = args.output+ "/" + job["name"]+".json"
             if os.path.exists(output_file):
                 res = json.load(open(output_file,"r"))
-            for build in job_info["builds"]:
-                if build["number"] > job_info["lastCompletedBuild"]["number"] or str(build["number"]) in res:
+            builds = job_info["builds"]
+            builds.sort(key=lambda x:x["number"],reverse=True)
+            if len(builds) > runs:
+                builds = builds[:runs]
+            for build in builds:
+                if build["number"] > job_info["lastCompletedBuild"]["number"] or \
+                        (not build["number"] == job_info["lastCompletedBuild"]["number"] and str(build["number"]) in res):
                     continue
                 try:
                     build_res={}
@@ -128,10 +133,13 @@ if __name__ == "__main__":
                     for tr in trs:
                         key = None
                         for line in tr.strings:
-                            for item in keys:
-                                if line.find(item) >= 0:
-                                    key = item
-                                    break
+                            for item in portal_keys:
+                                try:
+                                    if line.find(item) >= 0:
+                                        key = item
+                                        break
+                                except TypeError as e:
+                                    print(str(line) + ":" + str(item))
                             if not line.strip("\n") == "" and key:
                                 build_res[key] = line.strip(" \n")
                         if "class" in tr.attrs:
@@ -167,9 +175,9 @@ if __name__ == "__main__":
                     res[str(build["number"])] = build_res
                 except jenkins.NotFoundException as e :
                     continue
-            keys = [run for run in res]
+            keys = [int(run) for run in res]
             keys.sort(reverse=True)
             data = {}
             for run in keys[:runs]:
-                data[run] = res[run]
+                data[str(run)] = res[str(run)]
             json.dump(data,open(output_file,"w"),indent=4)
