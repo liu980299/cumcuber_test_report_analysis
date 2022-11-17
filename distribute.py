@@ -17,6 +17,7 @@ if __name__ == "__main__":
     passwords = args.passwords.split(",")
     server_dict = dict(zip(servers,passwords))
     lastbuilds = {}
+    urls={}
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
@@ -29,6 +30,8 @@ if __name__ == "__main__":
         for job in jobs:
             job_info = server.get_job_info(job["name"])
             lastbuilds[job["name"]] = job_info["lastBuild"]["number"]
+            urls[job["name"]] = job_info["lastBuild"]["url"]
+
 
     files = os.listdir(args.input)
     teams = {}
@@ -87,7 +90,10 @@ if __name__ == "__main__":
                 jobs.sort()
                 for job in jobs:
                     section = pymsteams.cardsection()
-                    section.title("##" + job )
+                    if job in urls:
+                        section.title("# **JOB : [" + job +"]("+urls[job] +")**")
+                    else:
+                        section.title("# **JOB : " + job +"**")
                     section_text = ""
                     section_text += "\n\n**Features:**\n\n"
                     features = env_res["jobs"][job]
