@@ -86,15 +86,18 @@ if __name__ == "__main__":
                 teams[env].text(team_text)
                 for job in res[portal_url]["jobs"]:
                     section = pymsteams.cardsection()
-                    section.title(job)
+                    section.title("**" + job + "**")
                     section_text = ""
                     section_text += "\n\n**Features:**\n\n"
                     features = env_res["jobs"][job]
                     feature_list = [feature for feature in features.keys()]
                     feature_list.sort()
                     section_text += "\n\n"
-                    for feature in feature_list:
-                        section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                    if len(feature_list) > 0:
+                        for feature in feature_list:
+                            section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                    else:
+                        section_text += "\n\n  Congratulation! No feature failed in this job!"
                     section.text(section_text)
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
