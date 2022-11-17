@@ -83,7 +83,7 @@ if __name__ == "__main__":
             if portal_url.find(env) >= 0:
                 env_res = res[portal_url]
                 teams[env].title("Failed Scenarios Against Feature Distribution")
-                team_text = "**Total : " + str(env_res["Total"]) + " Failed : " + str(env_res["failed"]) + "** Version : " +  env_res[
+                team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
                                         "version"] + " Portal : " + portal_url
                 teams[env].text(team_text)
                 jobs = [key for key in res[portal_url]["jobs"]]
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                         for feature in feature_list:
                             section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
                     else:
-                        section_text += "\n\n  Congratulation! No feature failed in this job!"
+                        section_text += "\n\n <strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
                     section.text(section_text)
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
