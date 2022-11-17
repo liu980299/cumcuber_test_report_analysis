@@ -95,6 +95,7 @@ if __name__ == "__main__":
                     section_text += "\n\n"
                     for feature in feature_list:
                         section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                    section.text(section_text)
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
         teams[env].send()

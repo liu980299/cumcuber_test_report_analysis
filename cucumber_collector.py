@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 builds = builds[:runs]
             for build in builds:
                 if build["number"] > job_info["lastCompletedBuild"]["number"] or \
-                        (not build["number"] == job_info["lastCompletedBuild"]["number"] and str(build["number"]) in res):
+                        str(build["number"]) in res:
                     continue
                 try:
                     build_res={}
