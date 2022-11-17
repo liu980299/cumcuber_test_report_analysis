@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 for job in jobs:
                     section = pymsteams.cardsection()
                     if job in urls:
-                        section.title("# **JOB : [" + job +"]("+urls[job] +")**")
+                        section.title("# **JOB : [" + job +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
                     else:
                         section.title("# **JOB : " + job +"**")
                     section_text = ""
