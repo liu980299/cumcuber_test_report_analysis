@@ -27,7 +27,6 @@ if __name__ == "__main__":
                 if job["name"].find(job_name) == 0:
                     jobs.append(job)
         for job in jobs:
-            res = {}
             job_info = server.get_job_info(job["name"])
             lastbuilds[job["name"]] = job_info["lastBuild"]["number"]
 
@@ -84,9 +83,11 @@ if __name__ == "__main__":
                 team_text = "**Total : " + str(env_res["Total"]) + " Failed : " + str(env_res["failed"]) + "** Version : " +  env_res[
                                         "version"] + " Portal : " + portal_url
                 teams[env].text(team_text)
-                for job in res[portal_url]["jobs"]:
+                jobs = [key for key in res[portal_url]["jobs"]]
+                jobs.sort()
+                for job in jobs:
                     section = pymsteams.cardsection()
-                    section.title("**" + job + "**")
+                    section.title("##" + job )
                     section_text = ""
                     section_text += "\n\n**Features:**\n\n"
                     features = env_res["jobs"][job]
