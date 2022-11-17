@@ -41,6 +41,8 @@ if __name__ == "__main__":
         if file_name.endswith(".json"):
             file_path = args.input + "/" + file_name
             job_name = file_name.split(".")[0]
+            section = pymsteams.cardsection()
+            section.title(job_name)
             job_info = json.load(open(file_path, "r"))
             if job_name in lastbuilds:
                 lastBuild = lastbuilds[job_name]
@@ -53,7 +55,8 @@ if __name__ == "__main__":
                             res[build_res["PORTAL URL"]]["failed"] = 0
                             res[build_res["PORTAL URL"]]["passed"] = 0
                             res[build_res["PORTAL URL"]]["skipped"] = 0
-                            res[build_res["PORTAL URL"]]["features"] = {}
+                            res[build_res["PORTAL URL"]]["jobs"] = {}
+                            res[build_res["PORTAL URL"]]["jobs"][job_name]={}
                         env_res = res[build_res["PORTAL URL"]]
                         env_res["version"] = build_res["PORTAL VERSION"]
                         env_res["build"] = lastBuild
@@ -61,7 +64,9 @@ if __name__ == "__main__":
                         env_res["failed"] += int(build_res["failed"])
                         env_res["passed"] += int(build_res["passed"])
                         env_res["skipped"] += int(build_res["skipped"])
-                        features_res = env_res["features"]
+                        if job_name not in env_res["jobs"]:
+                            env_res["jobs"][job_name] = {}
+                        features_res = env_res["jobs"][job_name]
                         for scenario in build_res["scenarioes"]:
                             if scenario["result"] == "failed":
                                 if scenario["feature"] not in features_res:
@@ -78,13 +83,18 @@ if __name__ == "__main__":
                 teams[env].title("Failed Scenarios Against Feature Distribution")
                 team_text = "**Total : " + str(env_res["Total"]) + " Failed : " + str(env_res["failed"]) + "** Version : " +  env_res[
                                         "version"] + " Portal : " + portal_url
-                team_text += "\n\n**Features:**\n\n"
-                features = env_res["features"]
-                feature_list = [feature for feature in features.keys()]
-                feature_list.sort()
-                team_text += "\n\n"
-                for feature in feature_list:
-                    team_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
                 teams[env].text(team_text)
+                for job in res[portal_url]["jobs"]:
+                    section = pymsteams.cardsection()
+                    section.title(job)
+                    section_text = ""
+                    section_text += "\n\n**Features:**\n\n"
+                    features = env_res["jobs"][job]
+                    feature_list = [feature for feature in features.keys()]
+                    feature_list.sort()
+                    section_text += "\n\n"
+                    for feature in feature_list:
+                        section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                    teams[env].addSection(section)
                 teams[env].color(mcolor="red")
         teams[env].send()
