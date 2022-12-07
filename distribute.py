@@ -94,17 +94,17 @@ if __name__ == "__main__":
                         section.title("# **JOB : [" + job +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
                     else:
                         section.title("# **JOB : " + job +"**")
-                    section_text = ""
-                    section_text += "\n\n**Features:**\n\n"
+                    section_text = "\n\n<ul>"
+                    # section_text += "\n\n**Features:**"
                     features = env_res["jobs"][job]
                     feature_list = [feature for feature in features.keys()]
                     feature_list.sort()
-                    section_text += "\n\n"
                     if len(feature_list) > 0:
                         for feature in feature_list:
-                            section_text += "\n\n  [" + feature+ " (" + str(features[feature]["failed"]) + ")]("+ features[feature]["url"] +")"
+                            section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(features[feature]["failed"]) + ")</a></li>"
                     else:
-                        section_text += "\n\n <strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
+                        section_text += "<strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
+                    section_text +="</ul>"
                     section.text(section_text)
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
