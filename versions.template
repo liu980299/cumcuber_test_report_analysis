@@ -1,0 +1,19 @@
+<body>
+
+    <H1>Component Versions in QA Environments</H1>
+    <b>last updated: {{updatetime}}</b>
+    <Table border="1" style="width:100%">
+    <TR>
+    {% for field in components%}
+           <th>{{field}}</th>
+        {% endfor %}
+    </TR>
+         {% for envir in versions %}
+         <TR >
+         {% for component in components %}
+              <TD >{{envir|get_item:component}}</TD>
+         {%endfor%}
+         </TR>
+         {% endfor %}
+    </Table>
+</body>
