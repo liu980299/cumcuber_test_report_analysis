@@ -16,4 +16,10 @@
          </TR>
          {% endfor %}
     </Table>
+    <b>References:</b>
+    <ul>
+    {% for ref in references %}
+        <li><a href='{{ref}}'>{{ref}}</a></li>
+    {% endfor %}
+    </ul>
 </body>
