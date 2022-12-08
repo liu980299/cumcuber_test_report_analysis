@@ -29,6 +29,7 @@ def get_confluence(confluence):
     soup = BeautifulSoup(content, "html.parser")
     tr_lines = soup.find_all("tr")
     res = {"components":["Environment"],"data":{}}
+    res["url"]=server_url+page["_links"]["webui"]
     components = res["components"]
     for tr in tr_lines:
         tds = tr.find_all("td")
@@ -120,6 +121,7 @@ if __name__ == "__main__":
     context["components"] = components
     context["versions"] = versions
     context["updatetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    context["references"] =[source,jobs_dict["url"]]
     template = open("versions.template","r").read()
     html = Template(template).render(Context(context))
     open("versions.html","w").write(html)
