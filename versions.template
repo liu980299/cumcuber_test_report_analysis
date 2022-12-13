@@ -11,7 +11,7 @@
          {% for envir in versions %}
          <TR >
          {% for component in components %}
-              <TD >{{envir|get_item:component}}</TD>
+              <TD style="background-color:{{envir|get_item:component|get_item:'color'}}" >{{envir|get_item:component|get_item:'value'}}</TD>
          {%endfor%}
          </TR>
          {% endfor %}

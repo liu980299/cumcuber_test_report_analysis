@@ -19,6 +19,7 @@ parser.add_argument("--servers", help="Jenkins Server", required=True)
 parser.add_argument("--skips", help="folder would be skipped", required=True)
 parser.add_argument("--targets", help="target job names", required=True)
 parser.add_argument("--source", help="qa environment version source", required=True)
+parser.add_argument("--converts", help="component need version conversion", required=True)
 
 args = parser.parse_args()
 def get_confluence(confluence):
@@ -39,6 +40,21 @@ def get_confluence(confluence):
             components.append(component)
             res["data"][component] = tds_list[-1].text
     return res
+
+def get_color(source, target):
+    if source.find("-") < 0:
+        return "red"
+    src_items=source.split("-")
+    tgt_items=target.split("-")
+    for i in range(len(tgt_items) - 1):
+        if src_items[i] < tgt_items[i]:
+            return "red"
+        elif src_items[i] > tgt_items[i]:
+            return "white"
+    length = len(tgt_items)
+    if src_items[length - 1] < tgt_items[length - 1]:
+        return "yellow"
+    return "green"
 
 def get_versions(source,username,server_dict):
     res = []
@@ -73,6 +89,8 @@ if __name__ == "__main__":
     server_dict = dict(zip(servers, passwords))
     skips = args.skips.split(",")
     confluence = args.confluence
+    release,conversion = args.converts.split(":")
+    converts = conversion.split(",")
     source = args.source
 
     jobs_dict = get_confluence(confluence)
@@ -109,12 +127,28 @@ if __name__ == "__main__":
                     else:
                         print(component + ": No Successful Build")
                 break
-    last_build = {"Environment":"Last Build"}
+    last_build = {"Environment":{"value":"Last Build","color":"white"}}
     for component in res:
+        last_build[component] = {"color":"white"}
         if "displayName" in res[component]:
-            last_build[component] = res[component]["displayName"].split(":")[-1]
+            value = res[component]["displayName"].split(":")[-1]
+            for convert in converts:
+                value = value.replace(convert,release)
+                value = value.split("(")[0].strip()
+            last_build[component]["value"] = value
         else:
-            last_build[component] = "No Successful Build Available"
+            last_build[component]["value"] = "No Successful Build Available"
+            last_build[component]["color"] = "red"
+
+    for version in versions:
+        need_checked = False
+        if version["Environment"].find("DEV") < 0:
+            need_checked = True
+        for key in version:
+            color = "white"
+            if key not in ["Environment"] and key in last_build and need_checked:
+                color = get_color(version[key],last_build[key]["value"])
+            version[key]= {"value" :version[key], "color": color}
 
     versions.insert(0,last_build)
     context={}
