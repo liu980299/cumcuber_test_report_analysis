@@ -69,6 +69,7 @@ parser.add_argument("--passwords",help="passowrd",required=True)
 parser.add_argument("--servers",help="Jenkins Server",required=True)
 parser.add_argument("--jobs", help="job name list and delimiter ','",required=True)
 parser.add_argument("--output",help="output path",required=True)
+parser.add_argument("--reports",help="gluecumber job report naming map",required=True)
 parser.add_argument("--runs",help="keep how many runs data",required=True)
 
 args = parser.parse_args()
@@ -77,6 +78,12 @@ if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     server_dict = dict(zip(servers,passwords))
+    report_map = args.reports
+    report_dict = {}
+    for report_items in report_map.split("|"):
+        report_name,job_list = report_items.split(":")
+        for job_name in job_list.split(","):
+            report_dict[job_name] = report_name
     runs = int(args.runs)
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
@@ -109,7 +116,7 @@ if __name__ == "__main__":
                     build_test_info = server.get_build_info(job["name"], build["number"])
                     if build_test_info["result"] == "ABORTED":
                         continue
-                    cucumber_test_url = build_test_info["url"] + cucumber_test
+                    cucumber_test_url = build_test_info["url"] + report_dict[job["name"]] + "/index.html"
                     response = server.jenkins_request(requests.Request('GET',cucumber_test_url))
                     soup = BeautifulSoup(response.text,"html.parser")
                     li_infos = soup.find_all("li")
@@ -160,7 +167,7 @@ if __name__ == "__main__":
                                                 for link in links:
                                                     url = link.attrs["href"]
                                                     url_items = url.split("/")
-                                                    url = build_test_info["url"] + "/Cluecumber_20Test_20Report/" + url
+                                                    url = build_test_info["url"] + "/" + report_dict[job["name"]] + "/" + url
                                                     last_url_item = url_items[len(url_items)-1]
                                                     if last_url_item.find("feature") >=0:
                                                         case_result["feature_url"] = url
@@ -181,3 +188,4 @@ if __name__ == "__main__":
             for run in keys[:runs]:
                 data[str(run)] = res[str(run)]
             json.dump(data,open(output_file,"w"),indent=4)
+            print(output_file)
