@@ -72,16 +72,21 @@
         }
     }
     function buildjob(){
-        var build_url = job_url+"build?";
-        $.ajax({url:build_url,enctype:'multipart/form-data',data:formData,processData: false,contentType: false,
+        var build_url = job_url+"/build?delay=0Sec";
+        $.ajax({
+                type:"POST",
+                url:build_url,
+                enctype:'multipart/form-data',
+                data:formData,
+                processData: false,
+                contentType: false,
                 success:function(data){
                     getlastversion();
                 },
                 error:function(err){
                     console.log(err);
                 }
-                }
-                )
+                })
 
     }
     </script>
