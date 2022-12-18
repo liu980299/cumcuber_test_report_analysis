@@ -11,22 +11,32 @@
         var gap = (now - lasttime)/(1000 * 3600);
         formData = new FormData();
         formData.append("name","username");
-        formData.append("value","<DEFAULT>");
+        formData.append("value","{{username}}");
         formData.append("name","servers");
-        formData.append("value","<DEFAULT>");
+        formData.append("value","{{servers}}");
         formData.append("name","skips");
-        formData.append("value","<DEFAULT>");
+        formData.append("value","{{skips}}");
         formData.append("name","password");
         formData.append("value","<DEFAULT>");
         formData.append("name","confluence");
         formData.append("value","<DEFAULT>");
         formData.append("name","converts");
-        formData.append("value","<DEFAULT>");
+        formData.append("value","{{converts}}");
         formData.append("name","source");
-        formData.append("value","<DEFAULT>");
+        formData.append("value","{{source}}");
+
+        jsonData = {{jsonData|safe}};
+
+
+        var crumbUrl = location.origin + "/crumbIssuer/api/json";
+        $.ajax({type:"GET",url:crumbUrl, success:setCrumb});
+        formData.append("statusCode","303");
+        formData.append("redirectTo",".");
         var path = location.href;
         if (path.endsWith("/")){
-            path = path.substring(0,path.length-2);
+            path = path.substring(0,path.length-1);
+        }else{
+            path = path.substring(0,path.lastIndexOf("/"));
         }
         job_url = path.substring(0,path.lastIndexOf("/"));
 
@@ -41,6 +51,11 @@
         }
         $("#loading").hide();
     });
+    function setCrumb(data){
+        jsonData["Jenksin-Crumb"] = data["crumb"];
+        formData.append("Jenkins-Crumb",data["crumb"]);
+        formData.append("json",JSON.stringify(jsonData));
+    }
     function getlastversion(){
         $.ajax({type:"GET",url:job_url+"/api/json",success:processData})
     }
@@ -58,7 +73,7 @@
     }
     function buildjob(){
         var build_url = job_url+"build?";
-        $.ajax({url:build_url,enctype:'multipart/form-data',data:formData,
+        $.ajax({url:build_url,enctype:'multipart/form-data',data:formData,processData: false,contentType: false,
                 success:function(data){
                     getlastversion();
                 },

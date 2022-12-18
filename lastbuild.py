@@ -154,6 +154,18 @@ if __name__ == "__main__":
     context={}
     context["components"] = components
     context["versions"] = versions
+    context["username"] = args.username
+    context["converts"] = args.converts
+    context["servers"] = args.servers
+    context["skips"] = args.skips
+    context["source"] = args.source
+    params = []
+    for param in ['username','converts','skips','source','servers']:
+        params.append({"name":param,"value":getattr(args,param)})
+    for param in ['password','confluence']:
+        params.append({"name":param,"value":"<DEFAULT>","$redact":"value"})
+    jsonData = {"redirectTo":".","statusCode":"303","parameter":params}
+    context["jsonData"] = json.dumps(jsonData)
     context["updatetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     context["references"] =[source,jobs_dict["url"]]
     template = open("versions.template","r").read()
