@@ -1,5 +1,5 @@
 <head>
-    <script src="jquery-3.6.2.slim.min.js"></script>
+    <script src="jquery.min.3.6.2.js"></script>
     <link href="bootstrap.min.css" rel="stylesheet">
     <script src="bootstrap.bundle.min.js"></script>
     <script type="text/javascript">
