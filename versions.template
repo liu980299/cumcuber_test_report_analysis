@@ -77,7 +77,7 @@
     <H1>Component Versions in QA Environments</H1>
     <div id="loading"><H3>Loading...</H3></div>
     <div id="showversion">
-    <button id="version" onclick="buildjob()" class="btn btn-primary">Get The Latest Version</button>
+    <button id="version" onclick="buildjob()" class="btn btn-primary" style="color:black">Get The Latest Version</button>
     <div>
     <b id="time">last updated: {{updatetime}}</b>
     </div>
