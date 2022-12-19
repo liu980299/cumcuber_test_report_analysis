@@ -84,7 +84,7 @@
                 success:function(data){
                     getlastversion();
                 },
-                headers:{"Jenkins-Crumb":jenkins_crumb}
+                headers:{"Jenkins-Crumb":jenkins_crumb},
                 error:function(err){
                     console.log(err);
                 }
