@@ -9,6 +9,7 @@
         var now = new Date();
         var lasttime = new Date(updatedtime);
         var gap = (now - lasttime)/(1000 * 3600);
+        job_url = "{{job_url}}";
         formData = new FormData();
         formData.append("name","username");
         formData.append("value","{{username}}");
@@ -33,13 +34,6 @@
         formData.append("statusCode","303");
         formData.append("redirectTo",".");
         formData.append("Submit","Build");
-        var path = location.href;
-        if (path.endsWith("/")){
-            path = path.substring(0,path.length-1);
-        }else{
-            path = path.substring(0,path.lastIndexOf("/"));
-        }
-        job_url = path.substring(0,path.lastIndexOf("/"));
 
         if (gap < 3){
             $("#version").css("background-color","green");
@@ -74,18 +68,14 @@
         }
     }
     function buildjob(){
-        var build_url = job_url+"/build?delay=0Sec";
+        var build_url = "{{job_url}}/buildWithParameters?token={{token}}";
         $.ajax({
-                type:"POST",
+                type:"GET",
                 url:build_url,
-                enctype:'multipart/form-data',
-                data:formData,
-                processData: false,
-                contentType: false,
+                headers:{"Access-Control-Allow-Origin":"*"},
                 success:function(data){
                     getlastversion();
                 },
-                headers:{"Jenkins-Crumb":jenkins_crumb},
                 error:function(err){
                     console.log(err);
                 }

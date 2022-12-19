@@ -20,6 +20,8 @@ parser.add_argument("--skips", help="folder would be skipped", required=True)
 parser.add_argument("--targets", help="target job names", required=True)
 parser.add_argument("--source", help="qa environment version source", required=True)
 parser.add_argument("--converts", help="component need version conversion", required=True)
+parser.add_argument("--token", help="jenkins job token for remotely trigger ", required=True)
+parser.add_argument("--job_url", help="jenkins job url ", required=True)
 
 args = parser.parse_args()
 def get_confluence(confluence):
@@ -92,6 +94,8 @@ if __name__ == "__main__":
     release,conversion = args.converts.split(":")
     converts = conversion.split(",")
     source = args.source
+    token = args.token
+    job_url = args.job_url
 
     jobs_dict = get_confluence(confluence)
     versions= get_versions(source,args.username,server_dict)
@@ -159,6 +163,8 @@ if __name__ == "__main__":
     context["servers"] = args.servers
     context["skips"] = args.skips
     context["source"] = args.source
+    context["token"] = args.token
+    context["job_url"] = args.job_url
     params = []
     for param in ['username','converts','skips','source','servers']:
         params.append({"name":param,"value":getattr(args,param)})
