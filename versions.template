@@ -52,7 +52,7 @@
         $("#loading").hide();
     });
     function setCrumb(data){
-        jenksin_crumb = data["crumb"];
+        jenkins_crumb = data["crumb"];
         jsonData["Jenksin-Crumb"] = data["crumb"];
         formData.append("Jenkins-Crumb",data["crumb"]);
         formData.append("json",JSON.stringify(jsonData));
