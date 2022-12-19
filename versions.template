@@ -32,6 +32,7 @@
         $.ajax({type:"GET",url:crumbUrl, success:setCrumb});
         formData.append("statusCode","303");
         formData.append("redirectTo",".");
+        formData.append("Submit","Build");
         var path = location.href;
         if (path.endsWith("/")){
             path = path.substring(0,path.length-1);
