@@ -61,7 +61,7 @@
         if (!buildNo == successBuild){
             $("#loading").show();
             $("#showversion").hide();
-            setTimeOut(getlastversion,1000);
+            setTimeout(getlastversion,1000);
         }else{
             $("#loading").hide();
             $("#showversion").show();
@@ -76,7 +76,7 @@
                 success:function(data){
                     $("#loading").show();
                     $("#showversion").hide();
-                    setTimeOut(getlastversion,5000);
+                    setTimeout(getlastversion,5000);
                 },
                 error:function(err){
                     console.log(err);
