@@ -74,7 +74,9 @@
                 url:build_url,
                 headers:{"Access-Control-Allow-Origin":"*"},
                 success:function(data){
-                    getlastversion();
+                    $("#loading").show();
+                    $("#showversion").hide();
+                    setTimeOut(getlastversion,5000);
                 },
                 error:function(err){
                     console.log(err);
