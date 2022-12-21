@@ -7,6 +7,7 @@
         var updatedtime = $("#time").text();
         updatedtime = updatedtime.slice(updatedtime.indexOf(":") + 1).trim();
         var now = new Date();
+        buildNo = 0;
         var lasttime = new Date(updatedtime);
         var gap = (now - lasttime)/(1000 * 3600);
         job_url = "{{job_url}}";
@@ -30,6 +31,7 @@
 
 
         var crumbUrl = location.origin + "/crumbIssuer/api/json";
+        getlastversion();
         $.ajax({type:"GET",url:crumbUrl, success:setCrumb});
         formData.append("statusCode","303");
         formData.append("redirectTo",".");
@@ -56,15 +58,19 @@
         $.ajax({type:"GET",url:job_url+"/api/json",success:processData})
     }
     function processData(data,status,jqXHR){
-        buildNo = data.lastBuild.number;
+        var lastBuild = data.lastBuild.number;
         successBuild = data.lastSuccessfulBuild.number;
-        if (!buildNo == successBuild){
+        if (buildNo < lastBuild){
+            buildNo = lastBuild;
+        }
+        if (buildNo > successBuild){
             $("#loading").show();
             $("#showversion").hide();
             setTimeout(getlastversion,1000);
         }else{
             $("#loading").hide();
             $("#showversion").show();
+            buildNo = successBuild;
         }
     }
     function buildjob(){
@@ -74,6 +80,7 @@
                 url:build_url,
                 headers:{"Access-Control-Allow-Origin":"*"},
                 success:function(data){
+                    buildNo++;
                     $("#loading").show();
                     $("#showversion").hide();
                     setTimeout(getlastversion,5000);
