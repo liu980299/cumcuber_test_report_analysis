@@ -70,7 +70,11 @@
         }else{
             $("#loading").hide();
             $("#showversion").show();
-            buildNo = successBuild;
+            if (buildNo == 0){
+                buildNo = successBuild;
+            }else{
+                location.reload();
+            }
         }
     }
     function buildjob(){
@@ -97,7 +101,7 @@
 <body>
 
     <H1>Component Versions in QA Environments</H1>
-    <div id="loading"><H3>Loading...</H3></div>
+    <div id="loading"><H3>Processing...</H3></div>
     <div id="showversion">
     <button id="version" onclick="buildjob()" class="btn btn-primary" style="color:black">Get The Latest Version</button>
     <div>
