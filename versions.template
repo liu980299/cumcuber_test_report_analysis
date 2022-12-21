@@ -60,9 +60,6 @@
     function processData(data,status,jqXHR){
         var lastBuild = data.lastBuild.number;
         successBuild = data.lastSuccessfulBuild.number;
-        if (buildNo < lastBuild){
-            buildNo = lastBuild;
-        }
         if (buildNo > successBuild){
             $("#loading").show();
             $("#showversion").hide();
@@ -71,7 +68,7 @@
             $("#loading").hide();
             $("#showversion").show();
             if (buildNo == 0){
-                buildNo = successBuild;
+                buildNo = lastBuild;
             }else{
                 location.reload();
             }
