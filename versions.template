@@ -65,10 +65,10 @@
             $("#showversion").hide();
             setTimeout(getlastversion,1000);
         }else{
-            $("#loading").hide();
-            $("#showversion").show();
             if (buildNo == 0){
                 buildNo = lastBuild;
+                $("#loading").hide();
+                $("#showversion").show();
             }else{
                 location.reload();
             }
