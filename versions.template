@@ -82,6 +82,8 @@
                 headers:{"Access-Control-Allow-Origin":"*"},
                 success:function(data){
                     buildNo++;
+                    $("#loading").hide();
+                    $("#showversion").show();
                     setTimeout(getlastversion,5000);
                 },
                 error:function(err){
