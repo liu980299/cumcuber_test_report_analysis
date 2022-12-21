@@ -95,8 +95,8 @@
 </head>
 <body>
 
-    <H1>Component Versions in QA Environments</H1>
-    <div id="loading"><H3 style="text-align: center">Processing...</H3></div>
+    <H1 style="text-align: center">Component Versions in QA Environments</H1>
+    <div id="loading"><H3 style="text-align: center;top:50%">Processing...</H3></div>
     <div id="showversion">
     <button id="version" onclick="buildjob()" class="btn btn-primary" style="color:black">Get The Latest Version</button>
     <div>
