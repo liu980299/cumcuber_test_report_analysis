@@ -1,21 +1,74 @@
 import json
+import re
+
 import jenkins
 import argparse, os, urllib.parse, pymsteams
+
+import requests
+
+from getserverlog import ServerLog
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--username",help="username",required=True)
 parser.add_argument("--passwords",help="passowrd",required=True)
 parser.add_argument("--servers",help="Jenkins Server",required=True)
+parser.add_argument("--log_server",help="log server name",required=True)
 parser.add_argument("--jobs", help="job name list and delimiter ','",required=True)
 parser.add_argument("--input", help="Test Result folder", required=True, default="c:/cucumber-result/")
+parser.add_argument("--log_map", help="server,logfile pattern,grep keyword group, delimiter as |",required=True)
+parser.add_argument("--private_key", help="private_key location",required=True)
 parser.add_argument("--teams", help="teams webhook connectors", required=True)
+parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
+
 args = parser.parse_args()
+
+def get_failed_java(scenario,steps_dict,skips):
+    steps = scenario["steps"]
+    index = 0
+    for step in steps:
+        if step["result"] == "failed":
+            break
+        index += 1
+    java_file = None
+    orignial = None
+    while java_file == None:
+        keyword = steps[index]["name"]
+        items = keyword.split("\"")
+        new_items =[]
+        for i in range(0,len(items)):
+            if i % 2 == 0:
+                new_items.append(items[i])
+        new_keyword = "{}".join(new_items)
+        new_keyword = re.sub(r"(Then|Given|When|But|And)\s*","",new_keyword)
+        new_keyword = re.sub(r"\s+", " ", new_keyword)
+        new_keyword = re.sub(r" \d+ "," {} ",new_keyword)
+        if not orignial:
+            orignial = new_keyword
+
+
+        if new_keyword in steps_dict:
+            if steps_dict[new_keyword] in skips:
+                index -= 1
+            else:
+                failed_step = scenario["feature"] + ">>" + scenario["scenario"] + ">>" + orignial
+                return steps_dict[new_keyword], failed_step
+        else:
+            failed_step = scenario["feature"] + ">>" + scenario["scenario"] + ">>" + orignial
+            print("*** " + new_keyword + "Not Found")
+            return None, failed_step
+
+
+
 
 
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     server_dict = dict(zip(servers,passwords))
+    ssh_log = ServerLog(args.log_server,args.username,args.private_key)
+    input_dir = args.input
+    skips = args.skips.split(",")
+    log_list = args.log_map.split("|")
     lastbuilds = {}
     urls={}
     for server_url in server_dict:
@@ -35,22 +88,40 @@ if __name__ == "__main__":
 
     files = os.listdir(args.input)
     teams = {}
+    log_maps = {}
     for team_str in args.teams.split(","):
         (env, webhook) = team_str.split("|", 1)
         teams[env] = pymsteams.connectorcard(webhook)
+        log_maps[env] = [log_bolb.replace("<env>",env) for log_bolb in log_list]
     res = {}
+    steps_dict={}
+    java_analysis={}
+    if "result.json" in files:
+        steps_dict = json.load(open(input_dir + "/result.json","r"))
     for file_name in files:
-        if file_name.endswith(".json"):
+        if file_name.endswith(".json") and not file_name == 'result.json':
             file_path = args.input + "/" + file_name
             job_name = file_name.split(".")[0]
             section = pymsteams.cardsection()
             section.title(job_name)
             job_info = json.load(open(file_path, "r"))
             if job_name in lastbuilds:
+                java_analysis[job_name] = {}
                 lastBuild = lastbuilds[job_name]
                 if str(lastBuild) in job_info:
                     build_res = job_info[str(lastBuild)]
                     if "PORTAL URL" in build_res :
+                        for env in log_maps:
+                            if build_res["PORTAL URL"].find(env) >0:
+                                log_map = log_maps[env]
+                                start_time = build_res["Started on"].replace(" ","T").split(":")[0]
+                                end_time = build_res["Ended on"].replace(" ", "T").split(":")[0]
+                                ssh_log.set_duration(start_time,end_time)
+                                for log_blob in log_map:
+                                    log_data=log_blob.replace("<job>",job_name)
+                                    log_name, log_pattern, keyword = log_data.split(":",2)
+                                    ssh_log.extract_log(log_name,log_pattern,keyword)
+
                         if build_res["PORTAL URL"] not in res:
                             res[build_res["PORTAL URL"]] = {}
                             res[build_res["PORTAL URL"]]["Total"] = 0
@@ -71,13 +142,20 @@ if __name__ == "__main__":
                         features_res = env_res["jobs"][job_name]
                         for scenario in build_res["scenarioes"]:
                             if scenario["result"] == "failed":
+                                if len(steps_dict) > 0:
+                                    java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
+                                    if java_file:
+                                        if java_file not in java_analysis[job_name]:
+                                            java_analysis[job_name][java_file] ={}
+                                        java_analysis[job_name][java_file][failed_step] = scenario["scenario_url"]
                                 if scenario["feature"] not in features_res:
                                     features_res[scenario["feature"]] = {"failed":0}
                                 feature_res = features_res[scenario["feature"]]
                                 feature_res["failed"] += 1
                                 if "url" not in feature_res:
                                     feature_res["url"] = scenario["feature_url"]
-
+    if len(steps_dict) > 0:
+        json.dump(java_analysis,open("results.json","w"),indent=4)
     for env in teams:
         for portal_url in res:
             if portal_url.find(env) >= 0:
