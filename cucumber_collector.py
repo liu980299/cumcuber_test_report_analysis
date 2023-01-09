@@ -75,7 +75,7 @@ def getScenario(case_result, lastCompletedBuild = False):
                                             end = log_content.find(
                                                 "============================================ START SCENARIO")
                                             case_result["console_log"] = log_content[:end]
-                                            print("### + " + case_result["console_log"])
+
                             if child.find("img"):
                                 img_link = report_path + "/" + child.find("img").get("src")
                                 step_res["img"] = case_result["job"] + "/" + basename(img_link)
