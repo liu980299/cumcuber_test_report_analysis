@@ -2,10 +2,13 @@ import datetime
 import json
 import re
 
+import django
 import jenkins
 import argparse, os, urllib.parse, pymsteams
 
 import requests
+from django.conf import settings
+from django.template import Template, Context
 
 from getserverlog import ServerLog
 
@@ -19,9 +22,21 @@ parser.add_argument("--input", help="Test Result folder", required=True, default
 parser.add_argument("--log_map", help="server,logfile pattern,grep keyword group, delimiter as |",required=True)
 parser.add_argument("--private_key", help="private_key location",required=True)
 parser.add_argument("--teams", help="teams webhook connectors", required=True)
+parser.add_argument("--report_url",help="report url for jenkins to retrieve resources", required=True)
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 
 args = parser.parse_args()
+
+Templates = [
+    {
+        'BACKEND':'django.template.backends.django.DjangoTemplates'
+    }
+]
+
+settings.configure(TEMPLATES=Templates)
+
+django.setup()
+
 
 def get_failed_java(scenario,steps_dict,skips):
     steps = scenario["steps"]
@@ -96,6 +111,7 @@ if __name__ == "__main__":
     ssh_log = ServerLog(args.log_server,args.username,args.private_key)
     input_dir = args.input
     skips = args.skips.split(",")
+    report_url = args.report_url
     log_list = args.log_map.split("|")
     lastbuilds = {}
     urls={}
@@ -232,6 +248,11 @@ if __name__ == "__main__":
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
         teams[env].send()
+    context = {"report_url":report_url}
+    template = open("index.template","r").read()
+    html = Template(template).render(Context(context))
+    open("index.html","w").write(html)
+
     if len(res) > 0:
         json.dump(res,open("analysis.json","w"),indent=4)
 
