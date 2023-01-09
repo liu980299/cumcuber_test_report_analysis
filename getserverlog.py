@@ -19,7 +19,7 @@ class ServerLog:
     def extract_log(self, log_name,log_files,keyword):
         log_name = log_name.replace("<date>",self.test_date)
         log_files = log_files.replace("<date>",self.test_date)
-        command = "zstdgrep -E \"" + self.match_str + "\" " + log_files + "|grep " + keyword + ">>" + log_name + ".log"
+        command = "zstdgrep -E \"" + self.match_str + "\" " + log_files + "|grep " + keyword + ">" + log_name + ".log"
         ret = self.sshclient.execute_command(command)
         if len(ret) == 3 and not ret[2] == 0:
             print(ret)

@@ -28,7 +28,7 @@ if __name__ == "__main__":
                 keyword = keyword.replace("$param", "{}").replace("(\\\\d+)","{}").replace("\\\\","").replace("\\\"","")
                 res[keyword] = java_file
 
-
+    json.dump(res,open(output_dir+"/result.json","w",encoding='utf-8'),indent=4)
     print(json.dumps(res,indent=4))
 
 

@@ -1,5 +1,6 @@
 import json
 import os
+from os.path  import basename
 import sys
 from time import sleep
 import jenkins
@@ -9,7 +10,7 @@ from bs4 import BeautifulSoup
 import argparse
 
 
-def getScenario(case_result):
+def getScenario(case_result, lastCompletedBuild = False):
     try:
         response = server.jenkins_request(requests.Request('GET',case_result["scenario_url"]))
     except requests.exceptions.ConnectionError as e:
@@ -17,9 +18,10 @@ def getScenario(case_result):
         print("Connection error ...")
         getScenario(case_result)
         return
-
+    report_path = case_result["scenario_url"].rsplit("/",3)[0]
     soup = BeautifulSoup(response.text,"html.parser")
     li_infos = soup.find_all("li")
+    check="pass"
     for li in li_infos:
         if "list-group-item" in li.attrs["class"]:
             line = " ".join([item for item in li.strings]).strip(" \n")
@@ -38,15 +40,51 @@ def getScenario(case_result):
                         for style in child.attrs["class"]:
                             if style in flags:
                                 flag = style.split("-")[2]
+                                check = flag
                                 break
                         if flag:
                             step_res={"result":flag}
                             i=0
                             for item in child.contents:
-                                if isinstance(item,bs4.element.Tag) and i <=2:
-                                    step_res[step_keys[i]]=" ".join([ line for line in item.strings]).strip(" \n")
-                                    i += 1
+                                if isinstance(item,bs4.element.Tag):
+                                    if i <=2:
+                                        step_res[step_keys[i]]=" ".join([ line for line in item.strings]).strip(" \n")
+                                        i += 1
+                                    if flag == "failed" and "scenarioErrorMessage" in item.attrs["class"]:
+                                        pre = item.find("pre")
+                                        step_res["error_message"] = "".join([line for line in pre.strings])
+                                        try:
+                                            print(step_res["error_message"].encode(encoding='utf-8'))
+                                        except UnicodeEncodeError:
+                                            pass
                             case_result["steps"].append(step_res)
+                        elif check == "failed" and lastCompletedBuild:
+                            if "tags" in case_result:
+                                for tag in case_result["tags"]:
+                                    if tag.find("container") >= 0:
+                                        tag = tag.strip("@")
+                                        log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-" + tag + ".log"
+                                        response = server.jenkins_request(requests.Request('GET', log_url))
+                                        if response.text.find(case_result["scenario"]) > 0:
+                                            start = response.text.find(case_result["scenario"])
+                                            log_content = response.text[start:]
+                                            start = log_content.find("============================================ START SCENARIO")
+                                            log_content = log_content[start:]
+                                            start = log_content.find(case_result["scenario"])
+                                            log_content = log_content[start:]
+                                            end = log_content.find(
+                                                "============================================ START SCENARIO")
+                                            case_result["console_log"] = log_content[:end]
+                                            print("### + " + case_result["console_log"])
+                            if child.find("img"):
+                                img_link = report_path + "/" + child.find("img").get("src")
+                                step_res["img"] = case_result["job"] + "/" + basename(img_link)
+                                img_name = step_res["img"]
+                                with open(img_name, "wb") as f:
+                                    f.write(server.jenkins_request(requests.Request("GET",img_link)).content)
+                            else:
+                                print("*** " + case_result["scenario_url"])
+
             else:
                 line_links = li.find_all("a")
                 for line_link in line_links:
@@ -99,7 +137,9 @@ if __name__ == "__main__":
 
         for job in jobs:
             res = {}
-            job_info = server.get_job_info(job["name"])            
+            job_info = server.get_job_info(job["name"])
+            if not os.path.exists(job["name"]):
+                os.mkdir(job["name"])
             output_file = args.output+ "/" + job["name"]+".json"
             if os.path.exists(output_file):
                 res = json.load(open(output_file,"r"))
@@ -112,6 +152,9 @@ if __name__ == "__main__":
                         str(build["number"]) in res:
                     continue
                 try:
+                    lastCompletedBuild = False
+                    if build["number"] == job_info["lastCompletedBuild"]["number"]:
+                        lastCompletedBuild = True
                     build_res={}
                     build_test_info = server.get_build_info(job["name"], build["number"])
                     if build_test_info["result"] == "ABORTED":
@@ -176,7 +219,8 @@ if __name__ == "__main__":
                                                         case_result["scenario_url"] = url
                                                         case_result["scenario"] = (" ").join([line for line in link.strings])
                                     if "scenario_url" in case_result:
-                                        getScenario(case_result)
+                                        case_result["job"] = job["name"]
+                                        getScenario(case_result, lastCompletedBuild)
                                         build_res["scenarioes"].append(case_result)
 
                     res[str(build["number"])] = build_res

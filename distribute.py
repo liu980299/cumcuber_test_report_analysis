@@ -1,3 +1,4 @@
+import datetime
 import json
 import re
 
@@ -54,9 +55,36 @@ def get_failed_java(scenario,steps_dict,skips):
                 return steps_dict[new_keyword], failed_step
         else:
             failed_step = scenario["feature"] + ">>" + scenario["scenario"] + ">>" + orignial
-            print("*** " + new_keyword + "Not Found")
+            print("*** " + new_keyword + " Not Found")
             return None, failed_step
 
+def analysis_scenario(scenario,log_contents,mins=3):
+    res = {}
+    res["url"] = scenario["scenario_url"]
+    if "console_log" in scenario:
+        res["console_log"] = scenario["console_log"].split("\n\u001b[m\u001b[37m")
+    if "Ended on" in scenario:
+        lag = datetime.timedelta(minutes=mins)
+        res["end_time"] = scenario["Ended on"]
+        log_time = datetime.datetime.strptime(res["end_time"],"%Y-%m-%d %H:%M:%S")
+        timestamp = (log_time - lag).strftime("%Y-%m-%dT%H:%M:%S")
+        res["logs"]={}
+        for log_tag in log_contents:
+            res["logs"][log_tag] = []
+            for log_item in log_contents[log_tag]:
+                if log_item["log_time"] >= timestamp and log_item["log_time"] <= res["end_time"].replace(" ","T"):
+                    res["logs"][log_tag].append(log_item)
+    res["steps"] = []
+    for step in scenario["steps"]:
+        if step["result"] == "passed":
+            res["steps"].append(step["name"])
+        if step["result"] == "failed":
+            res["failed_step"] = step["name"]
+            if "error_message" in step:
+                res["error_message"] = step["error_message"]
+            if "img" in step:
+                res["img"] = step["img"]
+    return res
 
 
 
@@ -108,6 +136,7 @@ if __name__ == "__main__":
             if job_name in lastbuilds:
                 java_analysis[job_name] = {}
                 lastBuild = lastbuilds[job_name]
+                log_contents = {}
                 if str(lastBuild) in job_info:
                     build_res = job_info[str(lastBuild)]
                     if "PORTAL URL" in build_res :
@@ -121,9 +150,23 @@ if __name__ == "__main__":
                                     log_data=log_blob.replace("<job>",job_name)
                                     log_name, log_pattern, keyword = log_data.split(":",2)
                                     ssh_log.extract_log(log_name,log_pattern,keyword)
+                                    log_content = []
+                                    for line in open(log_name+".log","r").readlines():
+                                        if line.find(ssh_log.test_date) > 0:
+                                            start = line.find(ssh_log.test_date)
+                                            log_time = line[start:start+19]
+                                            log_content.append({"log_time":log_time,"content":line[start+19:],"prefix":line[:start]})
+                                    log_content.sort(key=lambda x:x["log_time"])
+                                    log_tag = log_name.rsplit("_",1)[1]
+                                    log_contents[log_tag] = log_content
 
                         if build_res["PORTAL URL"] not in res:
                             res[build_res["PORTAL URL"]] = {}
+                            res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
+                            for env in teams:
+                                if build_res["PORTAL URL"].find(env) > 0:
+                                    res[build_res["PORTAL URL"]]["Env"] = env
+                                    break
                             res[build_res["PORTAL URL"]]["Total"] = 0
                             res[build_res["PORTAL URL"]]["failed"] = 0
                             res[build_res["PORTAL URL"]]["passed"] = 0
@@ -149,9 +192,11 @@ if __name__ == "__main__":
                                             java_analysis[job_name][java_file] ={}
                                         java_analysis[job_name][java_file][failed_step] = scenario["scenario_url"]
                                 if scenario["feature"] not in features_res:
-                                    features_res[scenario["feature"]] = {"failed":0}
+                                    features_res[scenario["feature"]] = {"failed":0,"scenarios":{}}
                                 feature_res = features_res[scenario["feature"]]
                                 feature_res["failed"] += 1
+                                scenario_res = feature_res["scenarios"]
+                                scenario_res[scenario["scenario"]] = analysis_scenario(scenario,log_contents)
                                 if "url" not in feature_res:
                                     feature_res["url"] = scenario["feature_url"]
     if len(steps_dict) > 0:
@@ -187,3 +232,6 @@ if __name__ == "__main__":
                     teams[env].addSection(section)
                 teams[env].color(mcolor="red")
         teams[env].send()
+    if len(res) > 0:
+        json.dump(res,open("analysis.json","w"),indent=4)
+
