@@ -73,7 +73,7 @@ def get_failed_java(scenario,steps_dict,skips):
             print("*** " + new_keyword + " Not Found")
             return None, failed_step
 
-def analysis_scenario(scenario,log_contents,mins=3):
+def analysis_scenario(tag_id, scenario,log_contents,mins=3):
     res = {}
     res["url"] = scenario["scenario_url"]
     if "console_log" in scenario:
@@ -99,7 +99,9 @@ def analysis_scenario(scenario,log_contents,mins=3):
                 res["error_message"] = step["error_message"]
             if "img" in step:
                 res["img"] = step["img"]
-    return res
+    data_path = scenario["job_name"]+"/"+tag_id+".json"
+    json.dump(res,open(data_path,"w"),indent=4)
+    return {"url":data_path}
 
 
 
@@ -149,6 +151,7 @@ if __name__ == "__main__":
             section = pymsteams.cardsection()
             section.title(job_name)
             job_info = json.load(open(file_path, "r"))
+            scenario_id = 0
             if job_name in lastbuilds:
                 java_analysis[job_name] = {}
                 lastBuild = lastbuilds[job_name]
@@ -200,6 +203,7 @@ if __name__ == "__main__":
                             env_res["jobs"][job_name] = {}
                         features_res = env_res["jobs"][job_name]
                         for scenario in build_res["scenarioes"]:
+                            scenario["job_name"] = job_name
                             if scenario["result"] == "failed":
                                 if len(steps_dict) > 0:
                                     java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
@@ -212,7 +216,9 @@ if __name__ == "__main__":
                                 feature_res = features_res[scenario["feature"]]
                                 feature_res["failed"] += 1
                                 scenario_res = feature_res["scenarios"]
-                                scenario_res[scenario["scenario"]] = analysis_scenario(scenario,log_contents)
+                                scenario_id += 1
+                                tag_id = job_name + "_" + str(scenario_id)
+                                scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
                                 if "url" not in feature_res:
                                     feature_res["url"] = scenario["feature_url"]
     if len(steps_dict) > 0:
