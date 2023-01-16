@@ -57,6 +57,15 @@ def getScenario(case_result, lastCompletedBuild = False):
                                             print(step_res["error_message"].encode(encoding='utf-8'))
                                         except UnicodeEncodeError:
                                             pass
+                            if child.find("table"):
+                                step_res["table"] = []
+                                table = child.find("table")
+                                for line in table.find_all("tr"):
+                                    row = []
+                                    for td in line.find_all("td"):
+                                        row.append("".join([item for item in td.strings]))
+                                    step_res["table"].append(row)
+
                             case_result["steps"].append(step_res)
                         elif check == "failed" and lastCompletedBuild:
                             if "tags" in case_result:
@@ -84,6 +93,7 @@ def getScenario(case_result, lastCompletedBuild = False):
                                     f.write(server.jenkins_request(requests.Request("GET",img_link)).content)
                             else:
                                 print("*** " + case_result["scenario_url"])
+
 
             else:
                 line_links = li.find_all("a")

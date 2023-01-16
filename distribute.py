@@ -91,14 +91,13 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=3):
                     res["logs"][log_tag].append(log_item)
     res["steps"] = []
     for step in scenario["steps"]:
-        if step["result"] == "passed":
-            res["steps"].append(step["name"])
         if step["result"] == "failed":
             res["failed_step"] = step["name"]
             if "error_message" in step:
                 res["error_message"] = step["error_message"]
             if "img" in step:
                 res["img"] = step["img"]
+        res["steps"].append(step)
     data_path = scenario["job_name"]+"/"+tag_id+".json"
     json.dump(res,open(data_path,"w"),indent=4)
     return {"url":data_path}
