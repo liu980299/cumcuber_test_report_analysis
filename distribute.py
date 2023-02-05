@@ -23,6 +23,7 @@ parser.add_argument("--log_map", help="server,logfile pattern,grep keyword group
 parser.add_argument("--private_key", help="private_key location",required=True)
 parser.add_argument("--teams", help="teams webhook connectors", required=True)
 parser.add_argument("--report_url",help="report url for jenkins to retrieve resources", required=True)
+parser.add_argument("--performance",help="performance check argument <QA-CASEID>:<STEP>:<DURATION>", required=False)
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 
 args = parser.parse_args()
@@ -36,6 +37,118 @@ Templates = [
 settings.configure(TEMPLATES=Templates)
 
 django.setup()
+
+def analysis_performance(performances,job_info,performance_result, lastBuild):
+    qa_case = performances["case_id"]
+    step = performances["step"]
+    duration = performances["duration"]
+    if len(performance_result) == 0:
+        performance_result = {"scenarios":{},"_type":"report","data":"duration"}
+    for buildNum in job_info:
+        build_res = job_info[buildNum]
+
+        for scenario in build_res["scenarioes"]:
+            if scenario["scenario"].find(qa_case) >= 0:
+                if scenario["scenario"] not in performance_result["scenarios"]:
+                    performance_result["scenarios"][scenario["scenario"]] = []
+                scenario_res = performance_result["scenarios"][scenario["scenario"]]
+                scenario_item = {"build": buildNum}
+                scenario_item["version"] = build_res["PORTAL VERSION"]
+                steps = scenario["steps"]
+                for step_info in steps:
+                    if step_info["name"].find(step) >= 0:
+                        for key in step_info:
+                            if key == "duration":
+                                step_duration = step_info[key]
+                                m = re.search('(\d+)m\s*(\d+)s\s*(\d+)ms', step_duration)
+                                if m:
+                                    scenario_item["duration"] = float(m.group(1)) * 60 + float(m.group(2)) + float(
+                                        m.group(3)) / 1000
+                                    if buildNum == lastBuild:
+                                        if "duration" not in performance_result:
+                                            performance_result["duration"] = {}
+                                        performance_result["duration"][scenario["scenario"]] = scenario_item["duration"]
+                                        if "result" not in performance_result:
+                                            performance_result["result"] = {}
+                                        if scenario_item["build"] == lastBuild and scenario_item["duration"] > duration:
+                                            performance_result["result"][scenario["scenario"]] = "failed"
+                                        else:
+                                            performance_result["result"][scenario["scenario"]] = "pass"
+                            else:
+                                scenario_item[key] = step_info[key]
+                        break
+                if scenario_item["result"] == "failed":
+                    scenario_item["color"] = "red"
+                else:
+                    scenario_item["color"] = "green"
+                if not scenario_item["result"] == "skipped":
+                    scenario_res.append(scenario_item)
+    return performance_result
+
+
+def merge_summary(res):
+    for url in res:
+        env_res = res[url]
+        cursor = {}
+        top = {}
+        for job_name in env_res["job_summary"]:
+            cursor[job_name] = 0
+            for summary in env_res["job_summary"][job_name]:
+                if job_name not in top or ("Scenarios" in summary and top[job_name] < summary["Scenarios"]):
+                    top[job_name] = summary["Scenarios"]
+        start_time = ""
+        while(True):
+            tag = True
+            oversize = False
+
+            for job_name in cursor:
+                summary_list = env_res["job_summary"][job_name]
+                if cursor[job_name] >= len(summary_list) - 1:
+                    oversize = True
+                    break
+            if oversize:
+                break
+            for job_name in cursor:
+                summary_list = env_res["job_summary"][job_name]
+                if start_time == "" and "Scenarios" in summary_list[cursor[job_name]] \
+                    and "Started on" in summary_list[cursor[job_name]]:
+                    start_time = summary_list[cursor[job_name]]["Started on"][:13]
+                    break
+
+
+            for job_name in cursor:
+                summary_list = env_res["job_summary"][job_name]
+                while ("Started on" not in summary_list[cursor[job_name]] or summary_list[cursor[job_name]]["Started on"][:13] > start_time):
+                    cursor[job_name] += 1
+                    if cursor[job_name] >= len(summary_list) -1:
+                        tag = False
+                        break
+                else:
+                    if not tag:
+                        break
+                    if (summary_list[cursor[job_name]]["Started on"][:13] < start_time):
+                        start_time = summary_list[cursor[job_name]]["Started on"][:13]
+                        tag = False
+            if tag:
+                summary_item = {}
+                for key in ["Scenarios","passed","failed","skipped"]:
+                    summary_item[key] = 0
+                for job_name in cursor:
+                    job_summary = env_res["job_summary"][job_name][cursor[job_name]]
+                    for key in ["Scenarios", "passed", "failed", "skipped"]:
+                        summary_item[key] += int(job_summary[key])
+                    for key in ["PORTAL VERSION","PORTAL URL"]:
+                        summary_item[key] = job_summary[key]
+                    if "Started on" not in summary_item or summary_item["Started on"] > job_summary["Started on"]:
+                        summary_item["Started on"] =  job_summary["Started on"]
+                    if "Ended on" not in summary_item or summary_item["Ended on"] > job_summary["Ended on"]:
+                        summary_item["Ended on"] =  job_summary["Ended on"]
+                    cursor[job_name] += 1
+                start_time = ""
+                env_res["summary"].append(summary_item)
+
+
+
 
 
 def get_failed_java(scenario,steps_dict,skips):
@@ -109,6 +222,12 @@ if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     server_dict = dict(zip(servers,passwords))
+    performances = {}
+    if args.performance:
+        performance = args.performance.split(":")
+        performances["case_id"] = performance[0]
+        performances["step"] = performance[1]
+        performances["duration"] = int(performance[2])
     ssh_log = ServerLog(args.log_server,args.username,args.private_key)
     input_dir = args.input
     skips = args.skips.split(",")
@@ -139,6 +258,7 @@ if __name__ == "__main__":
         teams[env] = pymsteams.connectorcard(webhook)
         log_maps[env] = [log_bolb.replace("<env>",env) for log_bolb in log_list]
     res = {}
+    performance_res={}
     steps_dict={}
     java_analysis={}
     if "result.json" in files:
@@ -150,82 +270,122 @@ if __name__ == "__main__":
             section = pymsteams.cardsection()
             section.title(job_name)
             job_info = json.load(open(file_path, "r"))
+            job_summary = []
+            for build in job_info:
+                build_info = job_info[build]
+                build_summary = {}
+                for key in build_info:
+                    if not key == "scenarioes":
+                        build_summary[key] = build_info[key]
+                job_summary.append(build_summary)
             scenario_id = 0
             if job_name in lastbuilds:
+                performance_result = None
                 java_analysis[job_name] = {}
                 lastBuild = lastbuilds[job_name]
+                latestBuild = ""
+                for build in job_info:
+                    if build > latestBuild:
+                        latestBuild = build
                 log_contents = {}
-                if str(lastBuild) in job_info:
-                    build_res = job_info[str(lastBuild)]
-                    if "PORTAL URL" in build_res :
-                        for env in log_maps:
-                            if build_res["PORTAL URL"].find(env) >0:
-                                log_map = log_maps[env]
-                                start_time = build_res["Started on"].replace(" ","T").split(":")[0]
-                                end_time = build_res["Ended on"].replace(" ", "T").split(":")[0]
-                                ssh_log.set_duration(start_time,end_time)
-                                for log_blob in log_map:
-                                    log_data=log_blob.replace("<job>",job_name)
-                                    log_name, log_pattern, keyword = log_data.split(":",2)
-                                    ssh_log.extract_log(log_name,log_pattern,keyword)
-                                    log_content = []
-                                    for line in open(log_name+".log","r").readlines():
-                                        if line.find(ssh_log.test_date) > 0:
-                                            start = line.find(ssh_log.test_date)
-                                            log_time = line[start:start+19]
-                                            log_content.append({"log_time":log_time,"content":line[start+19:],"prefix":line[:start]})
-                                    log_content.sort(key=lambda x:x["log_time"])
-                                    log_tag = log_name.rsplit("_",1)[1]
-                                    log_contents[log_tag] = log_content
+                build_res = job_info[latestBuild]
+                if "PORTAL URL" in build_res :
+                    for env in log_maps:
+                        if build_res["PORTAL URL"].find(env) >0:
+                            log_map = log_maps[env]
+                            start_time = build_res["Started on"].replace(" ","T").split(":")[0]
+                            end_time = build_res["Ended on"].replace(" ", "T").split(":")[0]
+                            ssh_log.set_duration(start_time,end_time)
+                            for log_blob in log_map:
+                                log_data=log_blob.replace("<job>",job_name)
+                                log_name, log_pattern, keyword = log_data.split(":",2)
+                                ssh_log.extract_log(log_name,log_pattern,keyword)
+                                log_content = []
+                                for line in open(log_name+".log","r").readlines():
+                                    if line.find(ssh_log.test_date) > 0:
+                                        start = line.find(ssh_log.test_date)
+                                        log_time = line[start:start+19]
+                                        log_content.append({"log_time":log_time,"content":line[start+19:],"prefix":line[:start]})
+                                log_content.sort(key=lambda x:x["log_time"])
+                                log_tag = log_name.rsplit("_",1)[1]
+                                log_contents[log_tag] = log_content
 
-                        if build_res["PORTAL URL"] not in res:
-                            res[build_res["PORTAL URL"]] = {}
-                            res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
-                            for env in teams:
-                                if build_res["PORTAL URL"].find(env) > 0:
-                                    res[build_res["PORTAL URL"]]["Env"] = env
-                                    break
-                            res[build_res["PORTAL URL"]]["Total"] = 0
-                            res[build_res["PORTAL URL"]]["failed"] = 0
-                            res[build_res["PORTAL URL"]]["passed"] = 0
-                            res[build_res["PORTAL URL"]]["skipped"] = 0
-                            res[build_res["PORTAL URL"]]["jobs"] = {}
-                            res[build_res["PORTAL URL"]]["jobs"][job_name]={}
-                        env_res = res[build_res["PORTAL URL"]]
-                        env_res["version"] = build_res["PORTAL VERSION"]
-                        env_res["build"] = lastBuild
-                        env_res["Total"] += int(build_res["Scenarios"])
-                        env_res["failed"] += int(build_res["failed"])
-                        env_res["passed"] += int(build_res["passed"])
-                        env_res["skipped"] += int(build_res["skipped"])
-                        if job_name not in env_res["jobs"]:
-                            env_res["jobs"][job_name] = {}
-                        features_res = env_res["jobs"][job_name]
-                        for scenario in build_res["scenarioes"]:
-                            scenario["job_name"] = job_name
-                            if scenario["result"] == "failed":
-                                if len(steps_dict) > 0:
-                                    java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
-                                    if java_file:
-                                        if java_file not in java_analysis[job_name]:
-                                            java_analysis[job_name][java_file] ={}
-                                        java_analysis[job_name][java_file][failed_step] = scenario["scenario_url"]
-                                if scenario["feature"] not in features_res:
-                                    features_res[scenario["feature"]] = {"failed":0,"scenarios":{}}
-                                feature_res = features_res[scenario["feature"]]
-                                feature_res["failed"] += 1
-                                scenario_res = feature_res["scenarios"]
-                                scenario_id += 1
-                                tag_id = job_name + "_" + str(scenario_id)
-                                scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
-                                if "url" not in feature_res:
-                                    feature_res["url"] = scenario["feature_url"]
+                    if build_res["PORTAL URL"] not in res:
+                        res[build_res["PORTAL URL"]] = {}
+                        res[build_res["PORTAL URL"]]["builds"]={}
+                        res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
+                        for env in teams:
+                            if build_res["PORTAL URL"].find(env) > 0:
+                                res[build_res["PORTAL URL"]]["Env"] = env
+                                break
+                        res[build_res["PORTAL URL"]]["Total"] = 0
+                        res[build_res["PORTAL URL"]]["failed"] = 0
+                        res[build_res["PORTAL URL"]]["passed"] = 0
+                        res[build_res["PORTAL URL"]]["skipped"] = 0
+                        res[build_res["PORTAL URL"]]["jobs"] = {}
+                        res[build_res["PORTAL URL"]]["summary"] = []
+                        res[build_res["PORTAL URL"]]["job_summary"] = {}
+                        res[build_res["PORTAL URL"]]["jobs"][job_name]={}
+                    env_res = res[build_res["PORTAL URL"]]
+                    env_res["version"] = build_res["PORTAL VERSION"]
+                    env_res["builds"][job_name] = {"workable":latestBuild,"latest":str(lastBuild)}
+                    env_res["build"] = lastBuild
+                    env_res["Total"] += int(build_res["Scenarios"])
+                    env_res["failed"] += int(build_res["failed"])
+                    env_res["passed"] += int(build_res["passed"])
+                    env_res["skipped"] += int(build_res["skipped"])
+                    res[build_res["PORTAL URL"]]["job_summary"][job_name] = job_summary
+                    if job_name not in env_res["jobs"]:
+                        env_res["jobs"][job_name] = {}
+                    features_res = env_res["jobs"][job_name]
+                    for scenario in build_res["scenarioes"]:
+                        scenario["job_name"] = job_name
+                        if scenario["result"] == "failed":
+                            if len(steps_dict) > 0:
+                                java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
+                                if java_file:
+                                    if java_file not in java_analysis[job_name]:
+                                        java_analysis[job_name][java_file] ={}
+                                    java_analysis[job_name][java_file][failed_step] = scenario["scenario_url"]
+                            if scenario["feature"] not in features_res:
+                                features_res[scenario["feature"]] = {"failed":0,"scenarios":{}}
+                            feature_res = features_res[scenario["feature"]]
+                            feature_res["failed"] += 1
+                            scenario_res = feature_res["scenarios"]
+                            scenario_id += 1
+                            tag_id = job_name + "_" + str(scenario_id)
+                            scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
+                            if "url" not in feature_res:
+                                feature_res["url"] = scenario["feature_url"]
+                if len(performances) > 0:
+                    latest_build_info = job_info[latestBuild]
+                    if latest_build_info["PORTAL URL"] not in performance_res:
+                        performance_res[latest_build_info["PORTAL URL"]] = {}
+                    performance_res[latest_build_info["PORTAL URL"]] = analysis_performance(performances, job_info,performance_res[latest_build_info["PORTAL URL"]], str(lastBuild))
+    for build_url in performance_res:
+        if build_url not in res:
+            res[build_url] = {"jobs":{}}
+        if "Performance Test" not in res[build_url]["jobs"] :
+            res[build_url]["jobs"]["Performance Test"] = performance_res[build_url]
+
+
     if len(steps_dict) > 0:
         json.dump(java_analysis,open("results.json","w"),indent=4)
+
+    if len(res) > 0:
+        merge_summary(res)
+        json.dump(res,open("analysis.json","w"),indent=4)
+
     for env in teams:
+        send_flag = True
         for portal_url in res:
             if portal_url.find(env) >= 0:
                 env_res = res[portal_url]
+                for job in env_res["builds"]:
+                    job_builds = env_res["builds"][job]
+                    if not job_builds["workable"] == job_builds["latest"] :
+                        send_flag = False
+                        break
                 teams[env].title("Failed Scenarios Against Feature Distribution")
                 team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
                                         "version"] + " Portal : " + portal_url
@@ -233,31 +393,49 @@ if __name__ == "__main__":
                 jobs = [key for key in res[portal_url]["jobs"]]
                 jobs.sort()
                 for job in jobs:
-                    section = pymsteams.cardsection()
-                    if job in urls:
-                        section.title("# **JOB : [" + job +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
-                    else:
-                        section.title("# **JOB : " + job +"**")
-                    section_text = "\n\n<ul>"
-                    # section_text += "\n\n**Features:**"
-                    features = env_res["jobs"][job]
-                    feature_list = [feature for feature in features.keys()]
-                    feature_list.sort()
-                    if len(feature_list) > 0:
-                        for feature in feature_list:
-                            section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(features[feature]["failed"]) + ")</a></li>"
-                    else:
-                        section_text += "<strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
-                    section_text +="</ul>"
-                    section.text(section_text)
-                    teams[env].addSection(section)
+                    job_data = res[portal_url]["jobs"][job]
+                    if "_type" in job_data and job_data["_type"] == "report" and "data" in job_data:
+                        data_type = job_data["data"]
+                        if data_type in job_data and len(job_data[data_type]) > 0:
+                            section = pymsteams.cardsection()
+                            section.title("# **" + job + "**")
+                            section_text = "\n\n<ul>"
+
+                            for item in job_data[data_type]:
+                                section_text +="<li>" + item + " : " + str(job_data[data_type][item]) + "s </li>"
+                            section_text += "</ul>"
+                            section.text(section_text)
+                            teams[env].addSection(section)
+
+                for job in jobs:
+                    job_data = res[portal_url]["jobs"][job]
+                    if "_type" not in job_data or not job_data["_type"] == "report":
+                        section = pymsteams.cardsection()
+                        if job in urls:
+                            section.title("# **JOB : [" + job +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
+                        else:
+                            section.title("# **JOB : " + job +"**")
+                        section_text = "\n\n<ul>"
+                        # section_text += "\n\n**Features:**"
+                        features = env_res["jobs"][job]
+                        feature_list = [feature for feature in features.keys()]
+                        feature_list.sort()
+                        if len(feature_list) > 0:
+                            for feature in feature_list:
+                                section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(features[feature]["failed"]) + ")</a></li>"
+                        else:
+                            section_text += "<strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
+                        section_text +="</ul>"
+                        section.text(section_text)
+                        teams[env].addSection(section)
                 teams[env].color(mcolor="red")
-        teams[env].send()
+        if send_flag:
+            teams[env].send()
     context = {"report_url":report_url}
     template = open("index.template","r").read()
     html = Template(template).render(Context(context))
     open("index.html","w").write(html)
 
-    if len(res) > 0:
-        json.dump(res,open("analysis.json","w"),indent=4)
+
+
 
