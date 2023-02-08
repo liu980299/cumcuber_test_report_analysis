@@ -140,7 +140,7 @@ if __name__ == "__main__":
         job_names = args.jobs.split(",")
         for job in all_jobs:
             for job_name in job_names:
-                if job["name"].find(job_name) == 0:
+                if job["name"].find(job_name) == 0 and job["name"].lower().find("temp") < 0:
                     jobs.append(job)
         if not os.path.exists(args.output) :
             os.mkdir(args.output)

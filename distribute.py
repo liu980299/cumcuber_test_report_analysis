@@ -168,11 +168,11 @@ def analysis_context(context_res,context_flags,scenario):
         for page_item_flag in page_flag.replace("{}","\"([^\"]+)\"").split(","):
             page_item = {}
             if page_item_flag.find("++") > 0:
-                pattern,include=page_flag.split("++")
+                pattern,include=page_item_flag.split("++")
                 page_item["pattern"] = pattern
                 page_item["include"] = include.split("#")
             elif page_item_flag.find("--") > 0:
-                pattern,exclude = page_flag.split("--")
+                pattern,exclude = page_item_flag.split("--")
                 page_item["pattern"] = pattern
                 page_item["exclude"] = exclude.split("#")
             else:
@@ -213,7 +213,7 @@ def analysis_context(context_res,context_flags,scenario):
                     for pattern in page_level:
                         m = re.search(pattern["pattern"], step["name"])
                         if m:
-                            page = m.group(1)
+                            page = m.group(1).strip()
                             if ("include" in pattern and page in pattern["include"]) or \
                                     ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
                                 contexts = contexts[:level].append(page)
@@ -253,7 +253,7 @@ def analysis_context(context_res,context_flags,scenario):
                 for pattern in page_level:
                     m = re.search(pattern["pattern"],step["name"])
                     if m:
-                        page = m.group(1)
+                        page = m.group(1).strip()
                         if ("include" in pattern and page in pattern["include"]) or \
                                 ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
                             contexts = contexts[:level]
