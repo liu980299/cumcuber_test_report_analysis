@@ -24,6 +24,7 @@ parser.add_argument("--private_key", help="private_key location",required=True)
 parser.add_argument("--teams", help="teams webhook connectors", required=True)
 parser.add_argument("--report_url",help="report url for jenkins to retrieve resources", required=True)
 parser.add_argument("--performance",help="performance check argument <QA-CASEID>:<STEP>:<DURATION>", required=False)
+parser.add_argument("--context",help="context analysis argument <start flag>:<end flag>:<context flag>", required=False)
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 
 args = parser.parse_args()
@@ -148,6 +149,118 @@ def merge_summary(res):
                 env_res["summary"].append(summary_item)
 
 
+def analysis_context(context_res,context_flags,scenario):
+    start_flags = context_flags[0].split("#")
+    start_list = []
+    for start_flag in start_flags:
+        name,patterns,default_page = start_flag.split("|")
+        start_list.append([name,patterns.split(","),default_page.split(",")])
+    end_flags = context_flags[1].split(",")
+    end_dict = {}
+    for end_flag in end_flags:
+        name,pattern = end_flag.split("|")
+        end_dict[name] = pattern
+
+    page_flags= context_flags[2].split("|")
+    page_levels = []
+    for page_flag in page_flags:
+        page_items =[]
+        for page_item_flag in page_flag.replace("{}","\"([^\"]+)\"").split(","):
+            page_item = {}
+            if page_item_flag.find("++") > 0:
+                pattern,include=page_flag.split("++")
+                page_item["pattern"] = pattern
+                page_item["include"] = include.split("#")
+            elif page_item_flag.find("--") > 0:
+                pattern,exclude = page_flag.split("--")
+                page_item["pattern"] = pattern
+                page_item["exclude"] = exclude.split("#")
+            else:
+                page_item["pattern"] = page_item_flag
+            page_items.append(page_item)
+        page_levels.append(page_items)
+    contexts=[]
+    steps = scenario["steps"]
+    if "Others" not in context_res:
+        context_res["Others"]={}
+    for step in steps:
+        if step["result"] == "failed":
+            find_result = False
+            for start_flag in start_list:
+                patterns = start_flag[1]
+                for pattern in patterns:
+                    if step["name"].find(pattern) >= 0:
+                        if start_flag[0] not in context_res["Others"]:
+                            context_res["Others"][start_flag[0]] = {}
+                            context_res["Others"][start_flag[0]]["scenarios"] = []
+                        context_res["Others"][start_flag[0]]["scenarios"].append(scenario)
+                        find_result = True
+                        break
+                if find_result:
+                    break
+            if not find_result:
+                for end_flag in end_dict:
+                    if step["name"].find(end_dict[end_flag]) >=0:
+                        if end_flag not in context_res["Others"]:
+                            context_res["Others"][end_flag] = {}
+                            context_res["Others"][end_flag]["scenarios"] = []
+                        context_res["Others"][end_flag]["scenarios"].append(scenario)
+                        find_result = True
+                        break
+            if not find_result:
+                level = 0
+                for page_level in page_levels:
+                    for pattern in page_level:
+                        m = re.search(pattern["pattern"], step["name"])
+                        if m:
+                            page = m.group(1)
+                            if ("include" in pattern and page in pattern["include"]) or \
+                                    ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
+                                contexts = contexts[:level].append(page)
+                                switch_name = "Switch " + page
+                                if switch_name not in context_res["Others"]:
+                                    context_res["Others"][switch_name] = {}
+                                    context_res["Others"][switch_name]["scenarios"] = []
+                                context_res["Others"][switch_name]["scenarios"].append(scenario)
+                                find_result = True
+                                break
+                    level += 1
+                    if find_result:
+                        break
+            if not find_result:
+                context_levels = context_res
+                for context_name in contexts:
+                    if context_name not in context_levels:
+                        context_levels[context_name] = {}
+                    context_levels = context_levels[context_name]
+                if "scenarios" not in context_levels:
+                    context_levels["scenarios"] = []
+                context_levels["scenarios"].append(scenario)
+            break
+        else:
+            for start_flag in start_list:
+                patterns = start_flag[1]
+                for pattern in patterns:
+                    if step["name"].find(pattern) >= 0:
+                        contexts = start_flag[2]
+                        break
+            for end_flag in end_dict:
+                if step["name"].find(end_dict[end_flag]) >=0:
+                    contexts = []
+                    break
+            level = 0
+            for page_level in page_levels:
+                for pattern in page_level:
+                    m = re.search(pattern["pattern"],step["name"])
+                    if m:
+                        page = m.group(1)
+                        if ("include" in pattern and page in pattern["include"]) or \
+                                ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
+                            contexts = contexts[:level]
+                            contexts.append(page)
+                            break
+                level += 1
+
 
 
 
@@ -221,8 +334,10 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=3):
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
+    context_flags = args.context.split(":")
     server_dict = dict(zip(servers,passwords))
     performances = {}
+    context_res = {}
     if args.performance:
         performance = args.performance.split(":")
         performances["case_id"] = performance[0]
@@ -264,7 +379,7 @@ if __name__ == "__main__":
     if "result.json" in files:
         steps_dict = json.load(open(input_dir + "/result.json","r"))
     for file_name in files:
-        if file_name.endswith(".json") and not file_name == 'result.json':
+        if file_name.endswith(".json") and not file_name == 'result.json' and file_name.lower().find("temp") < 0:
             file_path = args.input + "/" + file_name
             job_name = file_name.split(".")[0]
             section = pymsteams.cardsection()
@@ -355,6 +470,7 @@ if __name__ == "__main__":
                             scenario_id += 1
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
+                            analysis_context(context_res,context_flags,scenario)
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                 if len(performances) > 0:
