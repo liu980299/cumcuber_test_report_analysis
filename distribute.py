@@ -334,7 +334,10 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=3):
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
-    context_flags = args.context.split(":")
+    if args.context:
+        context_flags = args.context.split(":")
+    else:
+        context_flags = None
     server_dict = dict(zip(servers,passwords))
     performances = {}
     context_res = {}
@@ -470,7 +473,8 @@ if __name__ == "__main__":
                             scenario_id += 1
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
-                            analysis_context(context_res,context_flags,scenario)
+                            if context_flags:
+                                analysis_context(context_res,context_flags,scenario)
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                 if len(performances) > 0:
