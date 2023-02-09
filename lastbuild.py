@@ -123,14 +123,14 @@ if __name__ == "__main__":
                     break
             if job_name:
                 job_info = server.get_job_info(job_name)
-                if job_info:
+                if job_info and job_info["buildable"]:
                     if job_info["lastSuccessfulBuild"]:
                         lastBuild = job_info["lastSuccessfulBuild"]["number"]
                         build_info = server.get_build_info(job_name, lastBuild)
                         res[component] = build_info
                     else:
                         print(component + ": No Successful Build")
-                break
+                    break
     last_build = {"Environment":{"value":"Last Build","color":"white"}}
     for component in res:
         last_build[component] = {"color":"white"}

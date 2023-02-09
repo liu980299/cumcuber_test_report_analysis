@@ -181,8 +181,6 @@ def analysis_context(context_res,context_flags,scenario):
         page_levels.append(page_items)
     contexts=[]
     steps = scenario["steps"]
-    if "Others" not in context_res:
-        context_res["Others"]={}
     for step in steps:
         if step["result"] == "failed":
             find_result = False
@@ -190,10 +188,10 @@ def analysis_context(context_res,context_flags,scenario):
                 patterns = start_flag[1]
                 for pattern in patterns:
                     if step["name"].find(pattern) >= 0:
-                        if start_flag[0] not in context_res["Others"]:
-                            context_res["Others"][start_flag[0]] = {}
-                            context_res["Others"][start_flag[0]]["scenarios"] = []
-                        context_res["Others"][start_flag[0]]["scenarios"].append(scenario)
+                        if start_flag[0] not in context_res:
+                            context_res[start_flag[0]] = {}
+                            context_res[start_flag[0]]["scenarios"] = []
+                        context_res[start_flag[0]]["scenarios"].append(scenario)
                         find_result = True
                         break
                 if find_result:
@@ -201,10 +199,10 @@ def analysis_context(context_res,context_flags,scenario):
             if not find_result:
                 for end_flag in end_dict:
                     if step["name"].find(end_dict[end_flag]) >=0:
-                        if end_flag not in context_res["Others"]:
-                            context_res["Others"][end_flag] = {}
-                            context_res["Others"][end_flag]["scenarios"] = []
-                        context_res["Others"][end_flag]["scenarios"].append(scenario)
+                        if end_flag not in context_res:
+                            context_res[end_flag] = {}
+                            context_res[end_flag]["scenarios"] = []
+                        context_res[end_flag]["scenarios"].append(scenario)
                         find_result = True
                         break
             if not find_result:
@@ -217,11 +215,13 @@ def analysis_context(context_res,context_flags,scenario):
                             if ("include" in pattern and page in pattern["include"]) or \
                                     ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
                                 contexts = contexts[:level].append(page)
-                                switch_name = "Switch " + page
-                                if switch_name not in context_res["Others"]:
-                                    context_res["Others"][switch_name] = {}
-                                    context_res["Others"][switch_name]["scenarios"] = []
-                                context_res["Others"][switch_name]["scenarios"].append(scenario)
+                                switch_name = page
+                                if "Switch" not in context_res:
+                                    context_res["Switch"] = {}
+                                if switch_name not in context_res["Swtich"]:
+                                    context_res["Switch"][switch_name] = {}
+                                    context_res["Switch"][switch_name]["scenarios"] = []
+                                context_res["Swtich"][switch_name]["scenarios"].append(scenario)
                                 find_result = True
                                 break
                     level += 1
