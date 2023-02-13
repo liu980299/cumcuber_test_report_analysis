@@ -149,8 +149,9 @@ def merge_summary(res):
                 env_res["summary"].append(summary_item)
 
 
-def analysis_context(context_res,context_flags,scenario):
+def analysis_context(context_res,context_flags,scenario,scenario_res):
     start_flags = context_flags[0].split("#")
+    scenario_res = {"name":scenario["scenario"],"data":scenario_res}
     start_list = []
     for start_flag in start_flags:
         name,patterns,default_page = start_flag.split("|")
@@ -191,7 +192,7 @@ def analysis_context(context_res,context_flags,scenario):
                         if start_flag[0] not in context_res:
                             context_res[start_flag[0]] = {}
                             context_res[start_flag[0]]["scenarios"] = []
-                        context_res[start_flag[0]]["scenarios"].append(scenario)
+                        context_res[start_flag[0]]["scenarios"].append(scenario_res)
                         find_result = True
                         break
                 if find_result:
@@ -202,7 +203,7 @@ def analysis_context(context_res,context_flags,scenario):
                         if end_flag not in context_res:
                             context_res[end_flag] = {}
                             context_res[end_flag]["scenarios"] = []
-                        context_res[end_flag]["scenarios"].append(scenario)
+                        context_res[end_flag]["scenarios"].append(scenario_res)
                         find_result = True
                         break
             if not find_result:
@@ -221,7 +222,7 @@ def analysis_context(context_res,context_flags,scenario):
                                 if switch_name not in context_res["Swtich"]:
                                     context_res["Switch"][switch_name] = {}
                                     context_res["Switch"][switch_name]["scenarios"] = []
-                                context_res["Swtich"][switch_name]["scenarios"].append(scenario)
+                                context_res["Swtich"][switch_name]["scenarios"].append(scenario_res)
                                 find_result = True
                                 break
                     level += 1
@@ -235,7 +236,7 @@ def analysis_context(context_res,context_flags,scenario):
                     context_levels = context_levels[context_name]
                 if "scenarios" not in context_levels:
                     context_levels["scenarios"] = []
-                context_levels["scenarios"].append(scenario)
+                context_levels["scenarios"].append(scenario_res)
             break
         else:
             for start_flag in start_list:
@@ -340,7 +341,6 @@ if __name__ == "__main__":
         context_flags = None
     server_dict = dict(zip(servers,passwords))
     performances = {}
-    context_res = {}
     if args.performance:
         performance = args.performance.split(":")
         performances["case_id"] = performance[0]
@@ -419,7 +419,7 @@ if __name__ == "__main__":
                                 log_name, log_pattern, keyword = log_data.split(":",2)
                                 ssh_log.extract_log(log_name,log_pattern,keyword)
                                 log_content = []
-                                for line in open(log_name+".log","r").readlines():
+                                for line in open(log_name+".log","r",encoding="utf8").readlines():
                                     if line.find(ssh_log.test_date) > 0:
                                         start = line.find(ssh_log.test_date)
                                         log_time = line[start:start+19]
@@ -443,8 +443,10 @@ if __name__ == "__main__":
                         res[build_res["PORTAL URL"]]["jobs"] = {}
                         res[build_res["PORTAL URL"]]["summary"] = []
                         res[build_res["PORTAL URL"]]["job_summary"] = {}
+                        res[build_res["PORTAL URL"]]["context"] = {}
                         res[build_res["PORTAL URL"]]["jobs"][job_name]={}
                     env_res = res[build_res["PORTAL URL"]]
+                    context_res= env_res["context"]
                     env_res["version"] = build_res["PORTAL VERSION"]
                     env_res["builds"][job_name] = {"workable":latestBuild,"latest":str(lastBuild)}
                     env_res["build"] = lastBuild
@@ -474,7 +476,7 @@ if __name__ == "__main__":
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
                             if context_flags:
-                                analysis_context(context_res,context_flags,scenario)
+                                analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]])
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                 if len(performances) > 0:
