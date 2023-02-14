@@ -155,7 +155,7 @@ def analysis_context(context_res,context_flags,scenario,scenario_res):
     start_list = []
     for start_flag in start_flags:
         name,patterns,default_page = start_flag.split("|")
-        start_list.append([name,patterns.split(","),default_page.split(",")])
+        start_list.append([name.split(","),patterns.split(","),default_page.split(",")])
     end_flags = context_flags[1].split(",")
     end_dict = {}
     for end_flag in end_flags:
@@ -189,10 +189,14 @@ def analysis_context(context_res,context_flags,scenario,scenario_res):
                 patterns = start_flag[1]
                 for pattern in patterns:
                     if step["name"].find(pattern) >= 0:
-                        if start_flag[0] not in context_res:
-                            context_res[start_flag[0]] = {}
-                            context_res[start_flag[0]]["scenarios"] = []
-                        context_res[start_flag[0]]["scenarios"].append(scenario_res)
+                        start_context = context_res
+                        for name in start_flag[0]:
+                            if name not in start_context:
+                                start_context[name] = {}
+                            start_context = start_context[name]
+                        if "scenarios" not in start_context:
+                            start_context["scenarios"] = []
+                        start_context["scenarios"].append(scenario_res)
                         find_result = True
                         break
                 if find_result:
@@ -510,7 +514,7 @@ if __name__ == "__main__":
                         break
                 teams[env].title("Failed Scenarios Against Feature Distribution")
                 team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
-                                        "version"] + " Portal : " + portal_url
+                                        "version"] + " Portal : " + portal_url + "<H2>Please check auto test results on <a href='" + report_url + "'>Workspace</a></H2>"
                 teams[env].text(team_text)
                 jobs = [key for key in res[portal_url]["jobs"]]
                 jobs.sort()
