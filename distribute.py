@@ -219,15 +219,16 @@ def analysis_context(context_res,context_flags,scenario,scenario_res):
                             page = m.group(1).strip()
                             if ("include" in pattern and page in pattern["include"]) or \
                                     ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
-                                contexts = contexts[:level].append(page)
-                                switch_name = page
-                                if "Switch" not in context_res:
-                                    context_res["Switch"] = {}
-                                if switch_name not in context_res["Swtich"]:
-                                    context_res["Switch"][switch_name] = {}
-                                    context_res["Switch"][switch_name]["scenarios"] = []
-                                context_res["Swtich"][switch_name]["scenarios"].append(scenario_res)
-                                find_result = True
+                                contexts = contexts[:level]
+                                contexts.append(page)
+                                # switch_name = page
+                                # if "Switch" not in context_res:
+                                #     context_res["Switch"] = {}
+                                # if switch_name not in context_res["Switch"]:
+                                #     context_res["Switch"][switch_name] = {}
+                                #     context_res["Switch"][switch_name]["scenarios"] = []
+                                # context_res["Swtich"][switch_name]["scenarios"].append(scenario_res)
+                                # find_result = True
                                 break
                     level += 1
                     if find_result:
