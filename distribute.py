@@ -235,6 +235,8 @@ def analysis_context(context_res,context_flags,scenario,scenario_res):
                         break
             if not find_result:
                 context_levels = context_res
+                if len(contexts) == 0:
+                    contexts = ["Others"]
                 for context_name in contexts:
                     if context_name not in context_levels:
                         context_levels[context_name] = {}
