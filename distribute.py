@@ -312,6 +312,10 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=3):
     res["url"] = scenario["scenario_url"]
     if "console_log" in scenario:
         res["console_log"] = scenario["console_log"].split("\n\u001b[m\u001b[37m")
+        for log_line in res["console_log"]:
+            m = re.search("([^ ]+@threatmetrix\.com)",log_line)
+            if m:
+                res["user_id"] = m.group(1)
     if "Ended on" in scenario:
         lag = datetime.timedelta(minutes=mins)
         res["end_time"] = scenario["Ended on"]
@@ -427,8 +431,8 @@ if __name__ == "__main__":
                                 ssh_log.extract_log(log_name,log_pattern,keyword)
                                 log_content = []
                                 for line in open(log_name+".log","r",encoding="utf8").readlines():
-                                    if line.find(ssh_log.test_date) > 0:
-                                        start = line.find(ssh_log.test_date)
+                                    if line.find(ssh_log.test_date + 'T') > 0:
+                                        start = line.find(ssh_log.test_date + 'T')
                                         log_time = line[start:start+19]
                                         log_content.append({"log_time":log_time,"content":line[start+19:],"prefix":line[:start]})
                                 log_content.sort(key=lambda x:x["log_time"])
