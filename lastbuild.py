@@ -117,20 +117,22 @@ if __name__ == "__main__":
             jobs[job["name"]] = job
         for target in targets:
             job_name = None
+            get_version = False
             for job in jobs:
                 if job.find(target) >= 0:
                     job_name = job
-                    break
-            if job_name:
-                job_info = server.get_job_info(job_name)
-                if job_info and job_info["buildable"]:
-                    if job_info["lastSuccessfulBuild"]:
-                        lastBuild = job_info["lastSuccessfulBuild"]["number"]
-                        build_info = server.get_build_info(job_name, lastBuild)
-                        res[component] = build_info
-                    else:
-                        print(component + ": No Successful Build")
-                    break
+                    job_info = server.get_job_info(job_name)
+                    if job_info and job_info["buildable"]:
+                        if job_info["lastSuccessfulBuild"]:
+                            lastBuild = job_info["lastSuccessfulBuild"]["number"]
+                            build_info = server.get_build_info(job_name, lastBuild)
+                            res[component] = build_info
+                        else:
+                            print(component + ": No Successful Build")
+                        get_version = True
+                        break
+            if get_version:
+                break
     last_build = {"Environment":{"value":"Last Build","color":"white"}}
     for component in res:
         last_build[component] = {"color":"white"}
