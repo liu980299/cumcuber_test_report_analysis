@@ -16,10 +16,13 @@ class ServerLog:
         self.match_str = self.match_str.strip("|")
         self.match_str += ")"
 
-    def extract_log(self, log_name,log_files,keyword):
+    def extract_log(self, log_name,log_files,keyword,exclude=None):
         log_name = log_name.replace("<date>",self.test_date)
         log_files = log_files.replace("<date>",self.test_date)
-        command = "zstdgrep -E \"" + self.match_str + "\" " + log_files + "|grep -i " + keyword + ">" + log_name + ".log"
+        if exclude:
+            command = "zstdgrep -E \"" + self.match_str + "\" " + log_files + "|grep -i " + keyword + "|grep -iv "+ exclude + ">" + log_name + ".log"
+        else:
+            command = "zstdgrep -E \"" + self.match_str + "\" " + log_files + "|grep -i " + keyword + ">" + log_name + ".log"
         ret = self.sshclient.execute_command(command)
         if len(ret) == 3 and not ret[2] == 0:
             print(ret)

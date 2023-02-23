@@ -427,8 +427,13 @@ if __name__ == "__main__":
                             ssh_log.set_duration(start_time,end_time)
                             for log_blob in log_map:
                                 log_data=log_blob.replace("<job>",job_name)
-                                log_name, log_pattern, keyword = log_data.split(":",2)
-                                ssh_log.extract_log(log_name,log_pattern,keyword)
+                                if len(log_data.split(":")) == 3:
+                                    log_name, log_pattern, keyword = log_data.split(":",2)
+                                    ssh_log.extract_log(log_name,log_pattern,keyword)
+                                else:
+                                    log_name, log_pattern, keyword,exclude = log_data.split(":",3)
+                                    ssh_log.extract_log(log_name,log_pattern,keyword,exclude=exclude)
+
                                 log_content = []
                                 for line in open(log_name+".log","r",encoding="utf8").readlines():
                                     if line.find(ssh_log.test_date + 'T') > 0:
