@@ -343,7 +343,7 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     return {"url":data_path}
 
 def get_dailyresult(confluence):
-    server_url, page_id, username, token = confluence.split("|")
+    server_url, page_id, username, token,jira_url = confluence.split("|")
     confluence = Confluence(server_url, username, token=token, verify_ssl=False)
     page = confluence.get_page_by_id(page_id, expand="body.storage")
     content = page["body"]["storage"]["value"]
@@ -379,6 +379,7 @@ def get_dailyresult(confluence):
                             res[record['Test']] = jira_str
                         else:
                             res[record['Test']] += "," + jira_str
+    res["jira_url"] = jira_url
     return res
 
 
@@ -386,8 +387,10 @@ if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     confluence_res = None
+    jira_url = ""
     if args.confluence:
         confluence_res = get_dailyresult(args.confluence)
+        jira_url = confluence_res["jira_url"]
     if args.context:
         context_flags = args.context.split(":")
     else:
@@ -627,7 +630,7 @@ if __name__ == "__main__":
                 teams[env].color(mcolor="red")
         if send_flag:
             teams[env].send()
-    context = {"report_url":report_url}
+    context = {"report_url":report_url,"jira_url":jira_url}
     template = open("index.template","r").read()
     html = Template(template).render(Context(context))
     open("index.html","w").write(html)
