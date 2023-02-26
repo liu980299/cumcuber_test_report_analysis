@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.gstatic.com">
-  <script type="text/javascript">report_url="{{report_url}}";jira_url={{jira_url}}</script>
+  <script type="text/javascript">report_url="{{report_url}}";jira_url="{{jira_url}}"</script>
   <style>
     @keyframes spin {
       0%   {transform: rotate(0deg);}
