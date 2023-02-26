@@ -1,10 +1,11 @@
 import datetime
 import json
 import re
-
+from bs4 import BeautifulSoup
 import django
 import jenkins
 import argparse, os, urllib.parse, pymsteams
+from atlassian import Confluence
 
 import requests
 from django.conf import settings
@@ -26,6 +27,7 @@ parser.add_argument("--report_url",help="report url for jenkins to retrieve reso
 parser.add_argument("--performance",help="performance check argument <QA-CASEID>:<STEP>:<DURATION>", required=False)
 parser.add_argument("--context",help="context analysis argument <start flag>:<end flag>:<context flag>", required=False)
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
+parser.add_argument("--confluence",help="conflence source and confidential",required=False)
 
 args = parser.parse_args()
 
@@ -307,7 +309,7 @@ def get_failed_java(scenario,steps_dict,skips):
             print("*** " + new_keyword + " Not Found")
             return None, failed_step
 
-def analysis_scenario(tag_id, scenario,log_contents,mins=3):
+def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     res = {}
     res["url"] = scenario["scenario_url"]
     if "console_log" in scenario:
@@ -340,12 +342,52 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=3):
     json.dump(res,open(data_path,"w"),indent=4)
     return {"url":data_path}
 
-
+def get_dailyresult(confluence):
+    server_url, page_id, username, token = confluence.split("|")
+    confluence = Confluence(server_url, username, token=token, verify_ssl=False)
+    page = confluence.get_page_by_id(page_id, expand="body.storage")
+    content = page["body"]["storage"]["value"]
+    soup = BeautifulSoup(content, "html.parser")
+    tables = soup.find_all("table")
+    res = {}
+    for table in tables:
+        ths = table.find_all("th")
+        headers = []
+        for th in ths:
+            headers.append(th.text)
+        if "Release" in headers:
+            trs = table.find_all("tr")
+            for tr in trs:
+                tds = tr.find_all("td")
+                row = []
+                for td in tds:
+                    row.append(td.text)
+                if len(row) > 0:
+                    record = dict(zip(headers,row))
+                    if record["StatusGreenPassRedFail"] == "RedFail" and record['Reason'].find('JIRA') >=0:
+                        jira_start = record['Reason'].find('JIRA')
+                        jira_str = record['Reason'][jira_start+40:]
+                        res[record['Test']] = ""
+                        while jira_str.find('JIRA')>=0:
+                            jira_start =jira_str.find('JIRA')
+                            if res[record['Test']] == "":
+                                res[record['Test']] = jira_str[:jira_start]
+                            else:
+                                res[record['Test']] += "," + jira_str[:jira_start]
+                            jira_str = jira_str[jira_start + 40:]
+                        if res[record['Test']] == "":
+                            res[record['Test']] = jira_str
+                        else:
+                            res[record['Test']] += "," + jira_str
+    return res
 
 
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
+    confluence_res = None
+    if args.confluence:
+        confluence_res = get_dailyresult(args.confluence)
     if args.context:
         context_flags = args.context.split(":")
     else:
@@ -490,7 +532,23 @@ if __name__ == "__main__":
                             scenario_res = feature_res["scenarios"]
                             scenario_id += 1
                             tag_id = job_name + "_" + str(scenario_id)
-                            scenario_res[scenario["scenario"]] = analysis_scenario(tag_id, scenario,log_contents)
+                            scenario_item = analysis_scenario(tag_id, scenario,log_contents)
+                            if confluence_res:
+                                scenario_tag = scenario["scenario"][:20]
+                                for key in confluence_res:
+                                    if key.lower().find(scenario_tag.lower()) >= 0:
+                                        scenario_item["JIRA"] = confluence_res[key]
+                            if scenario["scenario"] not in scenario_res:
+                                scenario_res[scenario["scenario"]] = scenario_item
+                            else:
+                                index = 0
+                                for i in range (1,20):
+                                    index += 1
+                                    scenario_name = scenario["scenario"] + "-" + str(index)
+                                    if scenario_name not in scenario_res:
+                                        scenario_res[scenario_name] = scenario_item
+                                        break
+
                             if context_flags:
                                 analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]])
                             if "url" not in feature_res:
