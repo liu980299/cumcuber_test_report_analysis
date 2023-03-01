@@ -151,7 +151,7 @@ def merge_summary(res):
                 env_res["summary"].append(summary_item)
 
 
-def analysis_context(context_res,context_flags,scenario,scenario_res):
+def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_res):
     start_flags = context_flags[0].split("#")
     scenario_res = {"name":scenario["scenario"],"data":scenario_res}
     start_list = []
@@ -270,8 +270,25 @@ def analysis_context(context_res,context_flags,scenario,scenario_res):
                             contexts.append(page)
                             break
                 level += 1
-
-
+    scenario_res["data"]["contexts"] = contexts
+    if len(contexts) > 0:
+        page = contexts[-1].lower()
+        for test in confluence_res["tests"]:
+            if "conditions" in test and scenario_res["data"]["version"] >= test["Release"]:
+                for condition in test["conditions"]:
+                    if "pages" in condition and page in condition["pages"]:
+                        if "steps" in condition:
+                            for step in condition["steps"]:
+                                if scenario_res["data"]["failed_step"].lower().find(step.lower()) >=0:
+                                    scenario_res["data"]["JIRA"] = test["JIRA"]
+                        else:
+                            scenario_res["data"]["JIRA"] = test["JIRA"]
+                    elif "steps" in condition:
+                        for step in condition["steps"]:
+                            if scenario_res["data"]["failed_step"].find(step) >= 0:
+                                scenario_res["data"]["JIRA"] = test["JIRA"]
+    else:
+        print("###" + scenario_res["name"])
 
 
 def get_failed_java(scenario,steps_dict,skips):
@@ -337,10 +354,15 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
                 res["error_message"] = step["error_message"]
             if "img" in step:
                 res["img"] = step["img"]
+        elif step["name"].lower().find("wait") < 0:
+            res["previous_step"] = step["name"]
         res["steps"].append(step)
     data_path = scenario["job_name"]+"/"+tag_id+".json"
     json.dump(res,open(data_path,"w"),indent=4)
-    return {"url":data_path}
+    previous_step = ""
+    if "previous_step" in res:
+        previous_step = res["previous_step"]
+    return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step}
 
 def get_dailyresult(confluence):
     server_url, page_id, username, token,jira_url = confluence.split("|")
@@ -349,7 +371,7 @@ def get_dailyresult(confluence):
     content = page["body"]["storage"]["value"]
     soup = BeautifulSoup(content, "html.parser")
     tables = soup.find_all("table")
-    res = {}
+    res = {"tests":[]}
     for table in tables:
         ths = table.find_all("th")
         headers = []
@@ -364,21 +386,45 @@ def get_dailyresult(confluence):
                     row.append(td.text)
                 if len(row) > 0:
                     record = dict(zip(headers,row))
-                    if record["StatusGreenPassRedFail"] == "RedFail" and record['Reason'].find('JIRA') >=0:
+                    if record["StatusGreenPassRedFail"].lower() == "redfail" and record['Reason'].find('JIRA') >=0:
+                        if "Release" in record:
+                            m = re.search("(\d+\.\d+)", record["Release"])
+                            if m:
+                                record["Release"] = m.group(1)
                         jira_start = record['Reason'].find('JIRA')
                         jira_str = record['Reason'][jira_start+40:]
-                        res[record['Test']] = ""
+                        record["Scenario"] = record['Test']
+                        m = re.search("<([^>]+)>",record["Test"])
+                        if m:
+                            condition_str = m.group(1)
+                            conditions = condition_str.split("|")
+                            condition_list = []
+                            for condition in conditions:
+                                condition_dict = {}
+                                if condition.find("&&") > 0:
+                                    condition_items = condition.split("&&",1)
+                                else:
+                                    condition_items = [condition]
+                                for condition_item in condition_items:
+                                    if condition_item.lower().find("page:") >= 0:
+                                        condition_dict["pages"] = [page.strip().lower() for page in condition_item.split(":")[1].split(",")]
+                                    elif condition_item.lower().find("step:") >= 0:
+                                        condition_dict["steps"] = [step.strip().lower() for step in condition_item.split(":")[1].split(",")]
+                                condition_list.append(condition_dict)
+                            record["conditions"] = condition_list
+                        record["JIRA"] = ""
                         while jira_str.find('JIRA')>=0:
                             jira_start =jira_str.find('JIRA')
-                            if res[record['Test']] == "":
-                                res[record['Test']] = jira_str[:jira_start]
+                            if record["JIRA"] == "":
+                                record["JIRA"] = jira_str[:jira_start]
                             else:
-                                res[record['Test']] += "," + jira_str[:jira_start]
+                                record["JIRA"] += "," + jira_str[:jira_start]
                             jira_str = jira_str[jira_start + 40:]
-                        if res[record['Test']] == "":
-                            res[record['Test']] = jira_str
+                        if record["JIRA"] == "":
+                            record["JIRA"] = jira_str
                         else:
-                            res[record['Test']] += "," + jira_str
+                            record["JIRA"]  += "," + jira_str
+                        res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
 
@@ -536,11 +582,13 @@ if __name__ == "__main__":
                             scenario_id += 1
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_item = analysis_scenario(tag_id, scenario,log_contents)
+                            scenario_item["version"] = env_res["version"]
                             if confluence_res:
                                 scenario_tag = scenario["scenario"][:20]
-                                for key in confluence_res:
-                                    if key.lower().find(scenario_tag.lower()) >= 0:
-                                        scenario_item["JIRA"] = confluence_res[key]
+                                for test in confluence_res["tests"]:
+                                    if test["Scenario"].lower().find(scenario_tag.lower()) >= 0 and env_res["version"] >= test["Release"].strip():
+                                        scenario_item["JIRA"] = test["JIRA"]
+                                        break
                             if scenario["scenario"] not in scenario_res:
                                 scenario_res[scenario["scenario"]] = scenario_item
                             else:
@@ -553,7 +601,7 @@ if __name__ == "__main__":
                                         break
 
                             if context_flags:
-                                analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]])
+                                analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]],confluence_res)
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                 if len(performances) > 0:
