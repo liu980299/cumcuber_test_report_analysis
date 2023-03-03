@@ -279,14 +279,40 @@ def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_r
                     if "pages" in condition and page in condition["pages"]:
                         if "steps" in condition:
                             for step in condition["steps"]:
-                                if scenario_res["data"]["failed_step"].lower().find(step.lower()) >=0:
-                                    scenario_res["data"]["JIRA"] = test["JIRA"]
+                                if step.endswith("+"):
+                                    new_step = step.strip("+")
+                                    previous_step = scenario_res["data"]["previous_step"]
+                                    if new_step.find("{}") >= 0:
+                                        previous_step = re.sub("\"[^\"]+\"","{}",previous_step)
+                                    if previous_step.lower().find(new_step.lower()) >= 0:
+                                        scenario_res["data"]["JIRA"] = test["JIRA"]
+                                        break
+                                else:
+                                    failed_step = scenario_res["data"]["failed_step"]
+                                    if step.find("{}") >= 0:
+                                        failed_step= re.sub("\"[^\"]+\"","{}",failed_step)
+                                    if failed_step.lower().find(step.lower()) >=0:
+                                        scenario_res["data"]["JIRA"] = test["JIRA"]
+                                        break
                         else:
                             scenario_res["data"]["JIRA"] = test["JIRA"]
-                    elif "steps" in condition:
+                    elif "steps" in condition and "pages" not in condition:
                         for step in condition["steps"]:
-                            if scenario_res["data"]["failed_step"].find(step) >= 0:
-                                scenario_res["data"]["JIRA"] = test["JIRA"]
+                            if step.endswith("+"):
+                                new_step = step.strip("+")
+                                previous_step = scenario_res["data"]["previous_step"]
+                                if new_step.find("{}") >= 0:
+                                    previous_step = re.sub("\"[^\"]+\"", "{}", previous_step)
+                                if previous_step.lower().find(new_step.lower()) >= 0:
+                                    scenario_res["data"]["JIRA"] = test["JIRA"]
+                                    break
+                            else:
+                                failed_step = scenario_res["data"]["failed_step"]
+                                if step.find("{}") >= 0:
+                                    failed_step = re.sub("\"[^\"]+\"", "{}", failed_step)
+                                if failed_step.lower().find(step.lower()) >= 0:
+                                    scenario_res["data"]["JIRA"] = test["JIRA"]
+                                    break
     else:
         print("###" + scenario_res["name"])
 
@@ -347,6 +373,7 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
                 if log_item["log_time"] >= timestamp and log_item["log_time"] <= res["end_time"].replace(" ","T"):
                     res["logs"][log_tag].append(log_item)
     res["steps"] = []
+    find_failed = False
     for step in scenario["steps"]:
         if step["result"] == "failed":
             res["failed_step"] = step["name"]
@@ -354,7 +381,8 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
                 res["error_message"] = step["error_message"]
             if "img" in step:
                 res["img"] = step["img"]
-        elif step["name"].lower().find("wait") < 0:
+            find_failed = True
+        elif step["name"].lower().find("wait") < 0 and step["name"].lower().find("if exists") < 0 and not find_failed:
             res["previous_step"] = step["name"]
         res["steps"].append(step)
     data_path = scenario["job_name"]+"/"+tag_id+".json"
@@ -669,7 +697,12 @@ if __name__ == "__main__":
                         feature_list.sort()
                         if len(feature_list) > 0:
                             for feature in feature_list:
-                                section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(features[feature]["failed"]) + ")</a></li>"
+                                checked_num = 0
+                                scenario_list = features[feature]["scenarios"]
+                                for scenario_name in scenario_list:
+                                    if "JIRA" in scenario_list[scenario_name]:
+                                        checked_num +=1
+                                section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(checked_num) + "/" +  str(features[feature]["failed"]) + ")</a></li>"
                         else:
                             section_text += "<strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
                         section_text +="</ul>"
