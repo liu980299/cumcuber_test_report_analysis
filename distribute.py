@@ -283,14 +283,14 @@ def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_r
                                     new_step = step.strip("+")
                                     previous_step = scenario_res["data"]["previous_step"]
                                     if new_step.find("{}") >= 0:
-                                        previous_step = re.sub("\"[^\"]+\"","{}",previous_step)
+                                        previous_step = formailise_str(previous_step)
                                     if previous_step.lower().find(new_step.lower()) >= 0:
                                         scenario_res["data"]["JIRA"] = test["JIRA"]
                                         break
                                 else:
                                     failed_step = scenario_res["data"]["failed_step"]
                                     if step.find("{}") >= 0:
-                                        failed_step= re.sub("\"[^\"]+\"","{}",failed_step)
+                                        failed_step= formailise_str(failed_step)
                                     if failed_step.lower().find(step.lower()) >=0:
                                         scenario_res["data"]["JIRA"] = test["JIRA"]
                                         break
@@ -302,20 +302,24 @@ def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_r
                                 new_step = step.strip("+")
                                 previous_step = scenario_res["data"]["previous_step"]
                                 if new_step.find("{}") >= 0:
-                                    previous_step = re.sub("\"[^\"]+\"", "{}", previous_step)
+                                    previous_step = formailise_str(previous_step)
                                 if previous_step.lower().find(new_step.lower()) >= 0:
                                     scenario_res["data"]["JIRA"] = test["JIRA"]
                                     break
                             else:
                                 failed_step = scenario_res["data"]["failed_step"]
                                 if step.find("{}") >= 0:
-                                    failed_step = re.sub("\"[^\"]+\"", "{}", failed_step)
+                                    failed_step = formailise_str(failed_step)
                                 if failed_step.lower().find(step.lower()) >= 0:
                                     scenario_res["data"]["JIRA"] = test["JIRA"]
                                     break
     else:
         print("###" + scenario_res["name"])
 
+def formailise_str(step_str):
+    res_str = re.sub("\s+\"[^\"]+\"\s+", " {} ", step_str)
+    res_str = re.sub("\s+\"[^\"]+\"", " {}", res_str)
+    return res_str
 
 def get_failed_java(scenario,steps_dict,skips):
     steps = scenario["steps"]
@@ -419,8 +423,11 @@ def get_dailyresult(confluence):
                             m = re.search("(\d+\.\d+)", record["Release"])
                             if m:
                                 record["Release"] = m.group(1)
-                        jira_start = record['Reason'].find('JIRA')
-                        jira_str = record['Reason'][jira_start+40:]
+                        m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",record['Reason'])
+                        if m:
+                            uuid = m.group(1)
+                            jira_start = record['Reason'].find(uuid)
+                            jira_str = record['Reason'][jira_start+36:]
                         record["Scenario"] = record['Test']
                         m = re.search("<([^>]+)>",record["Test"])
                         if m:
@@ -447,7 +454,14 @@ def get_dailyresult(confluence):
                                 record["JIRA"] = jira_str[:jira_start]
                             else:
                                 record["JIRA"] += "," + jira_str[:jira_start]
-                            jira_str = jira_str[jira_start + 40:]
+                            m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+                                          record['Reason'])
+                            if m:
+                                uuid=m.group(1)
+                                jira_start = record['Reason'].find(uuid)
+                                jira_str = record['Reason'][jira_start + 36:]
+                            else:
+                                jira_str = record['Reason'][jira_start + 40:]
                         if record["JIRA"] == "":
                             record["JIRA"] = jira_str
                         else:
