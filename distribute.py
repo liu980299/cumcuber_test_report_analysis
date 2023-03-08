@@ -152,37 +152,11 @@ def merge_summary(res):
 
 
 def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_res):
-    start_flags = context_flags[0].split("#")
-    scenario_res = {"name":scenario["scenario"],"data":scenario_res}
-    start_list = []
-    for start_flag in start_flags:
-        name,patterns,default_page = start_flag.split("|")
-        start_list.append([name.split(","),patterns.split(","),default_page.split(",")])
-    end_flags = context_flags[1].split(",")
-    end_dict = {}
-    for end_flag in end_flags:
-        name,pattern = end_flag.split("|")
-        end_dict[name] = pattern
-
-    page_flags= context_flags[2].split("|")
-    page_levels = []
-    for page_flag in page_flags:
-        page_items =[]
-        for page_item_flag in page_flag.replace("{}","\"([^\"]+)\"").split(","):
-            page_item = {}
-            if page_item_flag.find("++") > 0:
-                pattern,include=page_item_flag.split("++")
-                page_item["pattern"] = pattern
-                page_item["include"] = include.split("#")
-            elif page_item_flag.find("--") > 0:
-                pattern,exclude = page_item_flag.split("--")
-                page_item["pattern"] = pattern
-                page_item["exclude"] = exclude.split("#")
-            else:
-                page_item["pattern"] = page_item_flag
-            page_items.append(page_item)
-        page_levels.append(page_items)
+    scenario_res = {"name": scenario["scenario"], "data": scenario_res}
     contexts=[]
+    start_list = context_flags["start_list"]
+    end_dict = context_flags["end"]
+    page_levels = context_flags["page_levels"]
     steps = scenario["steps"]
     for step in steps:
         if step["result"] == "failed":
@@ -219,18 +193,12 @@ def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_r
                         m = re.search(pattern["pattern"], step["name"])
                         if m:
                             page = m.group(1).strip()
+                            if "pages" in pattern and (len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
+                                continue
                             if ("include" in pattern and page in pattern["include"]) or \
-                                    ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
+                                    ("exclude" in pattern and page not in pattern["exclude"]) or ("include" not in pattern and "exclude" not in pattern):
                                 contexts = contexts[:level]
                                 contexts.append(page)
-                                # switch_name = page
-                                # if "Switch" not in context_res:
-                                #     context_res["Switch"] = {}
-                                # if switch_name not in context_res["Switch"]:
-                                #     context_res["Switch"][switch_name] = {}
-                                #     context_res["Switch"][switch_name]["scenarios"] = []
-                                # context_res["Swtich"][switch_name]["scenarios"].append(scenario_res)
-                                # find_result = True
                                 break
                     level += 1
                     if find_result:
@@ -470,6 +438,49 @@ def get_dailyresult(confluence):
     res["jira_url"] = jira_url
     return res
 
+def parse_context(context_str):
+    context_flags = context_str.split(":")
+    start_flags = context_flags[0].split("#")
+    res ={}
+    start_list = []
+    for start_flag in start_flags:
+        name,patterns,default_page = start_flag.split("|")
+        start_list.append([name.split(","),patterns.split(","),default_page.split(",")])
+    end_flags = context_flags[1].split(",")
+    end_dict = {}
+    for end_flag in end_flags:
+        name,pattern = end_flag.split("|")
+        end_dict[name] = pattern
+
+    page_flags= context_flags[2].split("|")
+    page_levels = []
+    for page_flag in page_flags:
+        page_items =[]
+        for page_item_flag in page_flag.replace("{}","\"([^\"]+)\"").split(","):
+            page_item = {}
+            locked_pages = None
+            if page_item_flag.find("@") > 0:
+                page_item_flag,locked_pages=page_item_flag.split("@")
+                locked_pages = [locked_page.lower() for locked_page in locked_pages.split("#")]
+                locked_pages = [locked_page.lower() for locked_page in locked_pages.split("#")]
+            if page_item_flag.find("++") > 0:
+                pattern,include=page_item_flag.split("++")
+                page_item["pattern"] = pattern
+                page_item["include"] = include.split("#")
+            elif page_item_flag.find("--") > 0:
+                pattern,exclude = page_item_flag.split("--")
+                page_item["pattern"] = pattern
+                page_item["exclude"] = exclude.split("#")
+            else:
+                page_item["pattern"] = page_item_flag
+            if locked_pages:
+                page_item["pages"] = locked_pages
+            page_items.append(page_item)
+        page_levels.append(page_items)
+    res["start_list"] = start_list
+    res["end"] = end_dict
+    res["page_levels"] = page_levels
+    return res
 
 if __name__ == "__main__":
     servers = args.servers.split(",")
@@ -480,7 +491,7 @@ if __name__ == "__main__":
         confluence_res = get_dailyresult(args.confluence)
         jira_url = confluence_res["jira_url"]
     if args.context:
-        context_flags = args.context.split(":")
+        context_flags = parse_context(args.context)
     else:
         context_flags = None
     server_dict = dict(zip(servers,passwords))
