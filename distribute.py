@@ -334,10 +334,10 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
             if m:
                 res["user_id"] = m.group(1)
     if "Ended on" in scenario:
-        lag = datetime.timedelta(minutes=mins)
+        # lag = datetime.timedelta(minutes=mins)
         res["end_time"] = scenario["Ended on"]
-        log_time = datetime.datetime.strptime(res["end_time"],"%Y-%m-%d %H:%M:%S")
-        timestamp = (log_time - lag).strftime("%Y-%m-%dT%H:%M:%S")
+        # log_time = datetime.datetime.strptime(res["end_time"],"%Y-%m-%d %H:%M:%S")
+        timestamp = scenario["Started on"].replace(" ","T")
         res["logs"]={}
         for log_tag in log_contents:
             res["logs"][log_tag] = []
