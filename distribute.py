@@ -369,7 +369,9 @@ def get_dailyresult(confluence):
     server_url, page_id, username, token,jira_url,jira_auth = confluence.split("|")
     confluence = Confluence(server_url, username, token=token, verify_ssl=False)
     jira_server = jira_url.split("/")[0]
-    jira = JIRA(server="https://" + jira_server, token_auth=jira_auth)
+    if jira_server.find("https") < 0:
+        jira_server = "https://" + jira_server
+    jira = JIRA(server=jira_server, token_auth=jira_auth)
     page = confluence.get_page_by_id(page_id, expand="body.storage")
     content = page["body"]["storage"]["value"]
     soup = BeautifulSoup(content, "html.parser")
