@@ -6,6 +6,7 @@ import django
 import jenkins
 import argparse, os, urllib.parse, pymsteams
 from atlassian import Confluence
+from jira import JIRA
 
 import requests
 from django.conf import settings
@@ -365,13 +366,15 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step}
 
 def get_dailyresult(confluence):
-    server_url, page_id, username, token,jira_url = confluence.split("|")
+    server_url, page_id, username, token,jira_url,jira_auth = confluence.split("|")
     confluence = Confluence(server_url, username, token=token, verify_ssl=False)
+    jira_server = jira_url.split("/")[0]
+    jira = JIRA(server="https://" + jira_server, token_auth=jira_auth)
     page = confluence.get_page_by_id(page_id, expand="body.storage")
     content = page["body"]["storage"]["value"]
     soup = BeautifulSoup(content, "html.parser")
     tables = soup.find_all("table")
-    res = {"tests":[]}
+    res = {"tests":[],"jiras":{}}
     for table in tables:
         ths = table.find_all("th")
         headers = []
@@ -431,9 +434,12 @@ def get_dailyresult(confluence):
                             else:
                                 jira_str = record['Reason'][jira_start + 40:]
                         if record["JIRA"] == "":
-                            record["JIRA"] = jira_str
+                            record["JIRA"] = jira_str.split(" ")[0]
                         else:
-                            record["JIRA"]  += "," + jira_str
+                            record["JIRA"]  += "," + jira_str(" ")[0]
+                        for jira_id in record["JIRA"].split(","):
+                            issue = jira.issue(jira_id)
+                            res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
@@ -608,6 +614,12 @@ if __name__ == "__main__":
                     env_res = res[build_res["PORTAL URL"]]
                     context_res= env_res["context"]
                     env_res["version"] = build_res["PORTAL VERSION"]
+                    if "jiras" not in env_res and confluence_res:
+                        env_res["jiras"] = []
+                        for jira_issue in confluence_res["jiras"]:
+                            ticket = confluence_res["jiras"][jira_issue]
+                            if ticket["version"] <= env_res["version"]:
+                                env_res["jiras"].append(ticket)
                     env_res["builds"][job_name] = {"workable":latestBuild,"latest":str(lastBuild)}
                     env_res["build"] = lastBuild
                     env_res["Total"] += int(build_res["Scenarios"])
