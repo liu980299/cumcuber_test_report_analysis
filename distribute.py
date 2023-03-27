@@ -430,17 +430,17 @@ def get_dailyresult(confluence):
                             else:
                                 record["JIRA"] += "," + jira_str[:jira_start]
                             m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
-                                          record['Reason'])
+                                          jira_str)
                             if m:
                                 uuid=m.group(1)
-                                jira_start = record['Reason'].find(uuid)
-                                jira_str = record['Reason'][jira_start + 36:]
+                                jira_start = jira_str.find(uuid)
+                                jira_str = jira_str[jira_start + 36:]
                             else:
-                                jira_str = record['Reason'][jira_start + 40:]
+                                jira_str = jira_str['Reason'][jira_start + 40:]
                         if record["JIRA"] == "":
                             record["JIRA"] = jira_str.split(" ")[0]
                         else:
-                            record["JIRA"]  += "," + jira_str(" ")[0]
+                            record["JIRA"]  += "," + jira_str.split(" ")[0]
                         for jira_id in record["JIRA"].split(","):
                             issue = jira.issue(jira_id)
                             res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id}
