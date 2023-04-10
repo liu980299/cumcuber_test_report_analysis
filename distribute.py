@@ -507,7 +507,7 @@ def getContext(step,context_flags,previous_context):
 def timeline_analysis(scenario,timeline_res,context_flags):
 
     if "tags" not in scenario:
-        print("*** no tags in " + scenario["name"])
+        print("*** no tags in " + scenario["scenario"])
     else:
         container = scenario["tags"][0].strip()[1:]
         pattern = re.compile("(\d+)m (\d+)s (\d+)ms")
