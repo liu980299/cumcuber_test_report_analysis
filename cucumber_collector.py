@@ -26,13 +26,8 @@ def getScenario(case_result, lastCompletedBuild = False):
         if "list-group-item" in li.attrs["class"]:
             line = " ".join([item for item in li.strings]).strip(" \n")
             
-            if len(li.contents) <= 3:
-                if line.find(":") > 0:
-                    key,value = line.split(":",1)
-                elif line.find("@") < 0:
-                    value,key = line.split(" ",1)
-                case_result[key.strip(" \n")] = value.strip(" \n")
-            elif  li.parent.parent.text.strip("\n").split("\n")[0] == "Steps":
+
+            if  li.parent.parent.text.strip("\n").split("\n")[0] == "Steps":
                 case_result["steps"] = []
                 for child in li.children:
                     if isinstance(child,bs4.element.Tag):
@@ -53,10 +48,10 @@ def getScenario(case_result, lastCompletedBuild = False):
                                     if flag == "failed" and "scenarioErrorMessage" in item.attrs["class"]:
                                         pre = item.find("pre")
                                         step_res["error_message"] = "".join([line for line in pre.strings])
-                                        try:
-                                            print(step_res["error_message"].encode(encoding='utf-8'))
-                                        except UnicodeEncodeError:
-                                            pass
+                                        # try:
+                                        #     print(step_res["error_message"].encode(encoding='utf-8'))
+                                        # except UnicodeEncodeError:
+                                        #     pass
                             if child.find("table"):
                                 step_res["table"] = []
                                 table = child.find("table")
@@ -94,6 +89,19 @@ def getScenario(case_result, lastCompletedBuild = False):
                             else:
                                 print("*** " + case_result["scenario_url"])
 
+            elif len(li.contents) <= 3:
+                if line.find("@") >= 0:
+                    case_result["tags"] = line.split(",")
+                    if line.find("container") >= 0:
+                        case_result["tags"] = line.split(",")
+                    # else:
+                    #     print(line)
+                else:
+                    if line.find(":") > 0:
+                        key, value = line.split(":", 1)
+                    else:
+                        value, key = line.split(" ", 1)
+                    case_result[key.strip(" \n")] = value.strip(" \n")
 
             else:
                 line_links = li.find_all("a")
@@ -103,8 +111,11 @@ def getScenario(case_result, lastCompletedBuild = False):
                         value,key = line.split(" ",1)
                         case_result[key.strip(" \n")] = value.strip(" \n")
                     else:
-                        case_result["tags"]=line.split(",")
-                              
+                        if line.find("container") >= 0 :
+                            case_result["tags"]=line.split(",")
+                        # else:
+                        #     print(line)
+
 
 portal_keys = ["PORTAL URL","PORTAL VERSION"]
 cucumber_test ="Cluecumber_20Test_20Report/index.html"
@@ -242,4 +253,4 @@ if __name__ == "__main__":
             for run in keys[:runs]:
                 data[str(run)] = res[str(run)]
             json.dump(data,open(output_file,"w"),indent=4)
-            print(output_file)
+            # print(output_file)

@@ -30,6 +30,7 @@ parser.add_argument("--context",help="context analysis argument <start flag>:<en
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 parser.add_argument("--confluence",help="conflence source and confidential",required=False)
 
+
 args = parser.parse_args()
 
 Templates = [
@@ -448,6 +449,120 @@ def get_dailyresult(confluence):
     res["jira_url"] = jira_url
     return res
 
+def getContext(step,context_flags,previous_context):
+    start_list = context_flags["start_list"]
+    end_dict = context_flags["end"]
+    page_levels = context_flags["page_levels"]
+    contexts = previous_context.split(">")
+    if step["result"] == "failed":
+        for start_flag in start_list:
+            patterns = start_flag[1]
+            for pattern in patterns:
+                if step["name"].find(pattern) >= 0:
+                    for name in start_flag[0]:
+                        return name
+            for end_flag in end_dict:
+                if step["name"].find(end_dict[end_flag]) >= 0:
+                    if end_flag not in context_res:
+                        return end_flag
+            level = 0
+            for page_level in page_levels:
+                for pattern in page_level:
+                    m = re.search(pattern["pattern"], step["name"])
+                    if m:
+                        page = m.group(1).strip()
+                        if "pages" in pattern and (
+                                len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
+                            continue
+                        if ("include" in pattern and page in pattern["include"]) or \
+                                ("exclude" in pattern and page not in pattern["exclude"]) or (
+                                "include" not in pattern and "exclude" not in pattern):
+                            contexts = contexts[:level]
+                            contexts.append(page)
+                            return ">".join(contexts)
+                level += 1
+    else:
+        for start_flag in start_list:
+            patterns = start_flag[1]
+            for pattern in patterns:
+                if step["name"].find(pattern) >= 0:
+                    contexts = ">".join(start_flag[2])
+        for end_flag in end_dict:
+            if step["name"].find(end_dict[end_flag]) >= 0:
+                return previous_context
+        level = 0
+        for page_level in page_levels:
+            for pattern in page_level:
+                m = re.search(pattern["pattern"], step["name"])
+                if m:
+                    page = m.group(1).strip()
+                    if ("include" in pattern and page in pattern["include"]) or \
+                            ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
+                        contexts = contexts[:level]
+                        contexts.append(page)
+                        return ">".join(contexts)
+            level += 1
+    return previous_context
+
+def timeline_analysis(scenario,timeline_res,context_flags):
+
+    if "tags" not in scenario:
+        print(scenario)
+    else:
+        container = scenario["tags"][0].strip()[1:]
+        pattern = re.compile("(\d+)m (\d+)s (\d+)ms")
+        if container not in timeline_res:
+            timeline_res[container] = {"start_time":scenario["Started on"],"end_time":scenario["Ended on"],"scenarios":[]}
+        scenario_res={"start_time":scenario["Started on"],"end_time":scenario["Ended on"],"steps":[],"result":scenario["result"],"contexts":[]}
+        scenario_res["name"] = scenario["scenario"]
+        scenario_res["url"] = scenario["scenario_url"]
+        step_starttime = datetime.datetime.strptime(scenario["start_time"],"%Y-%m-%dT%H:%M:%S.%fZ")
+        context_steps=[]
+        context_res={"name":"Login","start_time":scenario_res["start_time"],"steps":[]}
+        previous_context = "Login"
+        for step in scenario["steps"]:
+            step_starttime_str = step_starttime.strftime("%Y-%m-%d %H:%M:%S")
+            step_str = step_starttime.strftime("%Y-%m-%d %H:%M:%S") + "|" + step["name"]
+            step_context = getContext(step,context_flags,previous_context)
+            if not step_context == previous_context:
+                context_res["end_time"] = step_starttime_str
+                if len(context_res["steps"]) > 0:
+                    scenario_res["contexts"].append(context_res)
+                context_res = {"name": step_context, "start_time":step_starttime_str , "steps": []}
+                previous_context = step_context
+            context_res["steps"].append(step_str)
+            if "duration" not in step:
+                if len(scenario["steps"]) == 1:
+                    step["duration"] = scenario["Test Runtime"]
+                else:
+                    print(step)
+
+            m = pattern.search(step["duration"])
+            if m:
+                step_starttime += datetime.timedelta(minutes=int(m.group(1)),seconds=int(m.group(2)),milliseconds=int(m.group(3)))
+            # scenario_res["steps"].append(step_str)
+            if step["result"] == "failed":
+                break
+        if len(context_res["steps"]) > 0:
+            context_res["end_time"] = scenario_res["end_time"]
+            scenario_res["contexts"].append(context_res)
+        container_res = timeline_res[container]
+        if "Ended on" not in scenario:
+            print(scenario)
+        if scenario["Started on"] < container_res["start_time"]:
+            container_res["start_time"] = scenario["Started on"]
+            container_res["scenarios"].insert(0,scenario_res)
+        elif scenario["Ended on"] > container_res["end_time"] or len(container_res["scenarios"]) == 0:
+            container_res["end_time"] = scenario["Ended on"]
+            container_res["scenarios"].append(scenario_res)
+        else:
+            index = 1
+            for scenario_item in container_res["scenarios"][1:]:
+                if scenario_res["start_time"] < scenario_item["start_time"]:
+                    break
+                index += 1
+            container_res["scenarios"].insert(index,scenario_res)
+
 def parse_context(context_str):
     context_flags = context_str.split(":")
     start_flags = context_flags[0].split("#")
@@ -614,9 +729,11 @@ if __name__ == "__main__":
                         res[build_res["PORTAL URL"]]["summary"] = []
                         res[build_res["PORTAL URL"]]["job_summary"] = {}
                         res[build_res["PORTAL URL"]]["context"] = {}
+                        res[build_res["PORTAL URL"]]["timeline"] = {}
                         res[build_res["PORTAL URL"]]["jobs"][job_name]={}
                     env_res = res[build_res["PORTAL URL"]]
                     context_res= env_res["context"]
+                    timeline_res = env_res["timeline"]
                     env_res["version"] = build_res["PORTAL VERSION"]
                     if "jiras" not in env_res and confluence_res:
                         env_res["jiras"] = []
@@ -636,6 +753,7 @@ if __name__ == "__main__":
                     features_res = env_res["jobs"][job_name]
                     for scenario in build_res["scenarioes"]:
                         scenario["job_name"] = job_name
+                        timeline_analysis(scenario,timeline_res,context_flags)
                         if scenario["result"] == "failed":
                             if len(steps_dict) > 0:
                                 java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
@@ -700,12 +818,13 @@ if __name__ == "__main__":
                 for job in env_res["builds"]:
                     job_builds = env_res["builds"][job]
                     if not job_builds["workable"] == job_builds["latest"] :
-                        send_flag = False
+                        send_flag = True
                         break
                 teams[env].title("Failed Scenarios Against Feature Distribution")
                 team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
-                                        "version"] + " Portal : " + portal_url + "<H2>Please check auto test results on <a href='" + report_url + "'>Workspace</a></H2>"
+                                        "version"] + " Portal : " + portal_url + "\n\n<H2>Please check auto test results on Workspace:" +report_url +"</H2>"
                 teams[env].text(team_text)
+
                 jobs = [key for key in res[portal_url]["jobs"]]
                 jobs.sort()
                 for job in jobs:
@@ -715,6 +834,7 @@ if __name__ == "__main__":
                         if data_type in job_data and len(job_data[data_type]) > 0:
                             section = pymsteams.cardsection()
                             section.title("# **" + job + "**")
+                            section.linkButton("Workspace",report_url)
                             section_text = "\n\n<ul>"
 
                             for item in job_data[data_type]:
@@ -751,7 +871,13 @@ if __name__ == "__main__":
                         teams[env].addSection(section)
                 teams[env].color(mcolor="red")
         if send_flag:
-            teams[env].send()
+            try:
+                # teams[env].printme()
+                teams[env].send()
+            except Exception as e:
+                print(e)
+                print("*** Could not send message to Teams")
+                pass
     context = {"report_url":report_url,"jira_url":jira_url}
     template = open("index.template","r").read()
     html = Template(template).render(Context(context))
