@@ -824,8 +824,9 @@ if __name__ == "__main__":
                         break
                 teams[env].title("Failed Scenarios Against Feature Distribution")
                 team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
-                                        "version"] + " Portal : " + portal_url + "\n\n<H2>Please check auto test results on Workspace:" +report_url +"</H2>"
+                                        "version"] + " Portal : " + portal_url + "\n\n<H2>Please check auto test results on Workspace:</H2><a href='" +report_url +"'>" + report_url+ "</a>"
                 teams[env].text(team_text)
+                teams[env].addLinkButton("Please check result on Workspace", report_url)
 
                 jobs = [key for key in res[portal_url]["jobs"]]
                 jobs.sort()
@@ -836,7 +837,6 @@ if __name__ == "__main__":
                         if data_type in job_data and len(job_data[data_type]) > 0:
                             section = pymsteams.cardsection()
                             section.title("# **" + job + "**")
-                            section.linkButton("Workspace",report_url)
                             section_text = "\n\n<ul>"
 
                             for item in job_data[data_type]:
