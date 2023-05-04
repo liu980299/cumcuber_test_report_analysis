@@ -689,7 +689,7 @@ if __name__ == "__main__":
                         latestBuild = build
                 log_contents = {}
                 build_res = job_info[latestBuild]
-                if "PORTAL URL" in build_res :
+                if "PORTAL URL" in build_res and "Started on" in build_res :
                     for env in log_maps:
                         if build_res["PORTAL URL"].find(env) >0:
                             log_map = log_maps[env]
