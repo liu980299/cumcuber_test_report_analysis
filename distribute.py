@@ -424,9 +424,17 @@ def get_dailyresult(confluence):
                                 condition_list.append(condition_dict)
                             record["conditions"] = condition_list
                         record["JIRA"] = ""
-                        while jira_str.find('JIRA')>=0:
+                        while jira_str.find('JIRA')>=0 or jira_str.find('https://')>=0:
                             jira_start =jira_str.find('JIRA')
-                            if record["JIRA"] == "":
+                            if jira_start < 0:
+                                jira_start = jira_str.find('https://')
+                                if jira_start == 0:
+                                    jiras = jira_str.split("https://")
+                                    if len(jiras) > 2:
+                                        jira_str = jiras[1].rsplit("/",1) + "https://".join(jiras[2:])
+                                    else:
+                                        jira_str = jiras[1].rsplit("/", 1)[1]
+                            if record["JIRA"] == "" and jira_start > 10:
                                 record["JIRA"] = jira_str[:jira_start]
                             else:
                                 record["JIRA"] += "," + jira_str[:jira_start]
@@ -437,14 +445,15 @@ def get_dailyresult(confluence):
                                 jira_start = jira_str.find(uuid)
                                 jira_str = jira_str[jira_start + 36:]
                             else:
-                                jira_str = jira_str['Reason'][jira_start + 40:]
+                                jira_str = jira_str[jira_start:]
                         if record["JIRA"] == "":
                             record["JIRA"] = jira_str.split(" ")[0]
                         else:
                             record["JIRA"]  += "," + jira_str.split(" ")[0]
                         for jira_id in record["JIRA"].split(","):
-                            issue = jira.issue(jira_id)
-                            res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id}
+                            if len(jira_id) > 0:
+                                issue = jira.issue(jira_id)
+                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
