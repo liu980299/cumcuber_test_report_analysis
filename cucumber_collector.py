@@ -157,6 +157,8 @@ if __name__ == "__main__":
             os.mkdir(args.output)
 
         for job in jobs:
+            if job["name"] not in report_dict:
+                continue
             res = {}
             job_info = server.get_job_info(job["name"])
             if not os.path.exists(job["name"]):
