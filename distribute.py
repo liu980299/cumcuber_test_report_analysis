@@ -687,6 +687,8 @@ if __name__ == "__main__":
                     if not key == "scenarioes":
                         build_summary[key] = build_info[key]
                 job_summary.append(build_summary)
+            build_list=[key for key in job_info.keys()]
+            build_list.sort(reverse=True)
             scenario_id = 0
             if job_name in lastbuilds:
                 performance_result = None
@@ -699,6 +701,12 @@ if __name__ == "__main__":
                 log_contents = {}
                 build_res = job_info[latestBuild]
                 if "PORTAL URL" in build_res and "Started on" in build_res :
+                    job_scenarios = {}
+                    for build_no in job_info:
+                        job_scenarios[build_no] = {}
+                        for scenario in job_info[build_no]["scenarioes"]:
+                            job_scenarios[build_no][scenario["scenario"]] = scenario
+
                     for env in log_maps:
                         if build_res["PORTAL URL"].find(env) >0:
                             log_map = log_maps[env]
@@ -781,6 +789,14 @@ if __name__ == "__main__":
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_item = analysis_scenario(tag_id, scenario,log_contents)
                             scenario_item["version"] = env_res["version"]
+                            for build_no in build_list:
+                                if build_no in job_scenarios and scenario['scenario'] in job_scenarios[build_no] and job_scenarios[build_no][scenario['scenario']]['result']=="passed":
+                                    latest_successful_test = job_scenarios[build_no][scenario['scenario']]
+                                    scenario_item["last_success_test"] = {}
+                                    scenario_item["last_success_test"]["version"] = job_info[build_no]["PORTAL VERSION"]
+                                    scenario_item["last_success_test"]["url"] = latest_successful_test["scenario_url"]
+                                    scenario_item["last_success_test"]["test_time"] = latest_successful_test["Started on"]
+                                    break
                             if confluence_res:
                                 scenario_tag = scenario["scenario"][:20]
                                 for test in confluence_res["tests"]:
