@@ -453,7 +453,7 @@ def get_dailyresult(confluence):
                         for jira_id in record["JIRA"].split(","):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)
-                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id}
+                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"]}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
@@ -798,9 +798,10 @@ if __name__ == "__main__":
                                     scenario_item["last_success_test"]["test_time"] = latest_successful_test["Started on"]
                                     break
                             if confluence_res:
-                                scenario_tag = scenario["scenario"][:20]
+                                scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
                                 for test in confluence_res["tests"]:
-                                    if test["Scenario"].lower().find(scenario_tag.lower()) >= 0 and env_res["version"] >= test["Release"].strip():
+                                    test_scenario = test["Scenario"].lower().replace(" ","")
+                                    if test_scenario.find(scenario_tag) >= 0 and env_res["version"] >= test["Release"].strip():
                                         scenario_item["JIRA"] = test["JIRA"]
                                         break
                             if scenario["scenario"] not in scenario_res:
@@ -818,6 +819,14 @@ if __name__ == "__main__":
                                 analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]],confluence_res)
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
+                        else:
+                            scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
+                            for ticket in env_res["jiras"]:
+                                test_scenario = ticket["scenario_text"].lower().replace(" ", "")
+                                if test_scenario.find(scenario_tag) >=0:
+                                    if "passed_tests" not in ticket:
+                                        ticket["passed_tests"] = []
+                                    ticket["passed_tests"].append({"name":scenario["scenario"],"url":scenario["scenario_url"]})
                 if len(performances) > 0:
                     latest_build_info = job_info[latestBuild]
                     if latest_build_info["PORTAL URL"] not in performance_res:
