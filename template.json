@@ -1,9 +1,7 @@
 {
     "Release": "<p>{}</p>","Feature File": "<p>{}</p>",
-    "StatusGreenPassRedFail": "<div class=\"content-wrapper\"><p><ac:structured-macro ac:macro-id=\"1f004849-3961-46f7-9923-79f8b3a6a4b4\" ac:name=\"status\" ac:schema-version=\"1\"><ac:parameter ac:name=\"colour\">Red</ac:parameter><ac:parameter ac:name=\"title\">FAIL</ac:parameter></ac:structured-macro></p></div>",
     "Since": "<div class=\"content-wrapper\"><p><time datetime=\"{}\"></time>\u00a0</p></div>",
     "Fixed": "<br/>",
     "Owner": "<div class=\"content-wrapper\"><p><ac:link><ri:user ri:userkey=\"{}\"></ri:user></ac:link>\u00a0</p></div>",
-    "Test": "{}",
-    "Reason": "<div class=\"content-wrapper\"><p><ac:structured-macro ac:macro-id=\"9219c223-0a64-47e6-9266-f8f0d2309e6d\" ac:name=\"jira\" ac:schema-version=\"1\"><ac:parameter ac:name=\"server\">JIRA</ac:parameter><ac:parameter ac:name=\"columnIds\">issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution</ac:parameter><ac:parameter ac:name=\"columns\">key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution</ac:parameter><ac:parameter ac:name=\"serverId\">61b6191d-d412-3043-a96c-75b7bceaed1f</ac:parameter><ac:parameter ac:name=\"key\">{}</ac:parameter></ac:structured-macro></p></div>"
+    "Test": "{}"
 }

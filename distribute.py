@@ -29,6 +29,7 @@ parser.add_argument("--performance",help="performance check argument <QA-CASEID>
 parser.add_argument("--context",help="context analysis argument <start flag>:<end flag>:<context flag>", required=False)
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 parser.add_argument("--confluence",help="conflence source and confidential",required=False)
+parser.add_argument("--jira", help="jira configuration",required=False)
 
 
 args = parser.parse_args()
@@ -93,64 +94,65 @@ def analysis_performance(performances,job_info,performance_result, lastBuild):
 
 def merge_summary(res):
     for url in res:
-        env_res = res[url]
-        cursor = {}
-        top = {}
-        for job_name in env_res["job_summary"]:
-            cursor[job_name] = 0
-            for summary in env_res["job_summary"][job_name]:
-                if job_name not in top or ("Scenarios" in summary and top[job_name] < summary["Scenarios"]):
-                    top[job_name] = summary["Scenarios"]
-        start_time = ""
-        while(True):
-            tag = True
-            oversize = False
+        if url not in ["configure"]:
+            env_res = res[url]
+            cursor = {}
+            top = {}
+            for job_name in env_res["job_summary"]:
+                cursor[job_name] = 0
+                for summary in env_res["job_summary"][job_name]:
+                    if job_name not in top or ("Scenarios" in summary and top[job_name] < summary["Scenarios"]):
+                        top[job_name] = summary["Scenarios"]
+            start_time = ""
+            while(True):
+                tag = True
+                oversize = False
 
-            for job_name in cursor:
-                summary_list = env_res["job_summary"][job_name]
-                if cursor[job_name] >= len(summary_list) - 1:
-                    oversize = True
-                    break
-            if oversize:
-                break
-            for job_name in cursor:
-                summary_list = env_res["job_summary"][job_name]
-                if start_time == "" and "Scenarios" in summary_list[cursor[job_name]] \
-                    and "Started on" in summary_list[cursor[job_name]]:
-                    start_time = summary_list[cursor[job_name]]["Started on"][:13]
-                    break
-
-
-            for job_name in cursor:
-                summary_list = env_res["job_summary"][job_name]
-                while ("Started on" not in summary_list[cursor[job_name]] or summary_list[cursor[job_name]]["Started on"][:13] > start_time):
-                    cursor[job_name] += 1
-                    if cursor[job_name] >= len(summary_list) -1:
-                        tag = False
-                        break
-                else:
-                    if not tag:
-                        break
-                    if (summary_list[cursor[job_name]]["Started on"][:13] < start_time):
-                        start_time = summary_list[cursor[job_name]]["Started on"][:13]
-                        tag = False
-            if tag:
-                summary_item = {}
-                for key in ["Scenarios","passed","failed","skipped"]:
-                    summary_item[key] = 0
                 for job_name in cursor:
-                    job_summary = env_res["job_summary"][job_name][cursor[job_name]]
-                    for key in ["Scenarios", "passed", "failed", "skipped"]:
-                        summary_item[key] += int(job_summary[key])
-                    for key in ["PORTAL VERSION","PORTAL URL"]:
-                        summary_item[key] = job_summary[key]
-                    if "Started on" not in summary_item or summary_item["Started on"] > job_summary["Started on"]:
-                        summary_item["Started on"] =  job_summary["Started on"]
-                    if "Ended on" not in summary_item or summary_item["Ended on"] > job_summary["Ended on"]:
-                        summary_item["Ended on"] =  job_summary["Ended on"]
-                    cursor[job_name] += 1
-                start_time = ""
-                env_res["summary"].append(summary_item)
+                    summary_list = env_res["job_summary"][job_name]
+                    if cursor[job_name] >= len(summary_list) - 1:
+                        oversize = True
+                        break
+                if oversize:
+                    break
+                for job_name in cursor:
+                    summary_list = env_res["job_summary"][job_name]
+                    if start_time == "" and "Scenarios" in summary_list[cursor[job_name]] \
+                        and "Started on" in summary_list[cursor[job_name]]:
+                        start_time = summary_list[cursor[job_name]]["Started on"][:13]
+                        break
+
+
+                for job_name in cursor:
+                    summary_list = env_res["job_summary"][job_name]
+                    while ("Started on" not in summary_list[cursor[job_name]] or summary_list[cursor[job_name]]["Started on"][:13] > start_time):
+                        cursor[job_name] += 1
+                        if cursor[job_name] >= len(summary_list) -1:
+                            tag = False
+                            break
+                    else:
+                        if not tag:
+                            break
+                        if (summary_list[cursor[job_name]]["Started on"][:13] < start_time):
+                            start_time = summary_list[cursor[job_name]]["Started on"][:13]
+                            tag = False
+                if tag:
+                    summary_item = {}
+                    for key in ["Scenarios","passed","failed","skipped"]:
+                        summary_item[key] = 0
+                    for job_name in cursor:
+                        job_summary = env_res["job_summary"][job_name][cursor[job_name]]
+                        for key in ["Scenarios", "passed", "failed", "skipped"]:
+                            summary_item[key] += int(job_summary[key])
+                        for key in ["PORTAL VERSION","PORTAL URL"]:
+                            summary_item[key] = job_summary[key]
+                        if "Started on" not in summary_item or summary_item["Started on"] > job_summary["Started on"]:
+                            summary_item["Started on"] =  job_summary["Started on"]
+                        if "Ended on" not in summary_item or summary_item["Ended on"] > job_summary["Ended on"]:
+                            summary_item["Ended on"] =  job_summary["Ended on"]
+                        cursor[job_name] += 1
+                    start_time = ""
+                    env_res["summary"].append(summary_item)
 
 
 def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_res):
@@ -329,6 +331,7 @@ def get_failed_java(scenario,steps_dict,skips):
 def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     res = {}
     res["url"] = scenario["scenario_url"]
+    feature = ""
     if "console_log" in scenario:
         res["console_log"] = scenario["console_log"].split("\n\u001b[m\u001b[37m")
         for log_line in res["console_log"]:
@@ -353,6 +356,12 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
             res["failed_step"] = step["name"]
             if "error_message" in step:
                 res["error_message"] = step["error_message"]
+                features = re.findall("/([^/]+\.feature)",res["error_message"])
+                if len(features) > 0:
+                    feature = features[-1]
+                    res["feature"] = feature
+                else:
+                    print(res["error_message"])
             if "img" in step:
                 res["img"] = step["img"]
             find_failed = True
@@ -364,7 +373,7 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     previous_step = ""
     if "previous_step" in res:
         previous_step = res["previous_step"]
-    return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step}
+    return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step,"feature_file":feature}
 
 def get_dailyresult(confluence):
     server_url, page_id, username, token,jira_url,jira_auth = confluence.split("|")
@@ -380,18 +389,64 @@ def get_dailyresult(confluence):
     soup = BeautifulSoup(content, "html.parser")
     tables = soup.find_all("table")
     res = {"tests":[],"jiras":{}}
+    owner_dict = {}
     for table in tables:
         ths = table.find_all("th")
         headers = []
         for th in ths:
             headers.append(th.text)
+        if "QA" in headers:
+            trs = table.find_all("tr")
+            owner_list = {}
+            for tr in trs:
+                tds = tr.find_all("td")
+                row = []
+                index = 0
+                owner = {}
+                for td in tds:
+                    row.append(str(td))
+                    text = str(td)
+                    if (text.find("userkey") >= 0):
+                        matches = re.findall("userkey=\"([^\"]+)\"", text)
+                        userkey = matches[len(matches) - 1]
+                        owner[headers[index]] = userkey
+                    else:
+                        if text.find(".feature") > 0 and index == 0:
+                            index += 1
+                        owner[headers[index]] = td.text
+                    index += 1
+                if len(owner) > 1 and "QA" in owner:
+                    ldap_user = owner["LDAP User"].lower()
+                    if ldap_user not in owner_list:
+                        owner_dict[owner["QA"]] = ldap_user
+                        print(owner)
+                        user = confluence.get_user_details_by_userkey(owner["QA"])
+                        owner_list[ldap_user] = {}
+                        owner_list[ldap_user]["user"] = user["displayName"]
+                        owner_list[ldap_user]["email"] = user["username"]
+                        owner_list[ldap_user]["key"] = owner["QA"]
+                        owner_list[ldap_user]["features"] = [owner["Feature File"].lower()]
+                    else:
+                        if "QA" in owner:
+                            owner_list[ldap_user]["features"].append(owner["Feature File"].lower())
+            res["owner_list"] = owner_list
         if "Release" in headers:
             trs = table.find_all("tr")
             for tr in trs:
                 tds = tr.find_all("td")
                 row = []
                 for td in tds:
-                    row.append(td.text)
+                    text = str(td)
+                    if (text.find("userkey") >= 0):
+                        matches = re.findall("userkey=\"([^\"]+)\"", text)
+                        userkey = matches[len(matches) - 1]
+                        if userkey in owner_dict:
+                            row.append(owner_dict[userkey])
+                        else:
+                            user = confluence.get_user_details_by_userkey(userkey)
+                            row.append(user["displayName"])
+                    else:
+                        row.append(td.text)
                 if len(row) > 0:
                     record = dict(zip(headers,row))
                     if record["StatusGreenPassRedFail"].lower() == "redfail" and record['Reason'].find('JIRA') >=0:
@@ -453,7 +508,8 @@ def get_dailyresult(confluence):
                         for jira_id in record["JIRA"].split(","):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)
-                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"]}
+                                creator = issue.get_field("creator")
+                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator)}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
@@ -618,11 +674,34 @@ def parse_context(context_str):
     res["page_levels"] = page_levels
     return res
 
+def write_container(res):
+    for key in res:
+        if key not in ["configure"]:
+            env_data = res[key]
+            env_name = env_data["Env"]
+            if (not os.path.exists(env_name)):
+                os.mkdir(env_name)
+            for container in env_data["timeline"]:
+                container_data = env_data["timeline"][container]
+                data_file = env_name + "/" + container + ".json"
+                container_data["url"] = data_file
+                container_file = open(data_file, "w")
+                json.dump(container_data,container_file,indent=4)
+                container_file.close()
+                for scenario in container_data["scenarios"]:
+                    for context in scenario["contexts"]:
+                        context["steps"] = []
+
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
     confluence_res = None
     jira_url = ""
+    jira_cfgs = {}
+    if args.jira:
+        jira_parameters = args.jira.split("|")
+        jira_cfgs["teams"] = jira_parameters[0].split(",")
+        jira_cfgs["projects"] = jira_parameters[1].split(",")
     if args.confluence:
         confluence_res = get_dailyresult(args.confluence)
         jira_url = confluence_res["jira_url"]
@@ -666,7 +745,11 @@ if __name__ == "__main__":
         (env, webhook) = team_str.split("|", 1)
         teams[env] = pymsteams.connectorcard(webhook)
         log_maps[env] = [log_bolb.replace("<env>",env) for log_bolb in log_list]
-    res = {}
+    res = {"configure":{}}
+    if len(jira_cfgs) > 0:
+
+        res["configure"]["teams"] = jira_cfgs["teams"]
+        res["configure"]["projects"] = jira_cfgs["projects"]
     performance_res={}
     steps_dict={}
     java_analysis={}
@@ -760,6 +843,7 @@ if __name__ == "__main__":
                             ticket = confluence_res["jiras"][jira_issue]
                             if ticket["version"] <= env_res["version"]:
                                 env_res["jiras"].append(ticket)
+                        env_res["owners"] = confluence_res["owner_list"]
                     env_res["builds"][job_name] = {"workable":latestBuild,"latest":str(lastBuild)}
                     env_res["build"] = lastBuild
                     env_res["Total"] += int(build_res["Scenarios"])
@@ -803,6 +887,12 @@ if __name__ == "__main__":
                                     test_scenario = test["Scenario"].lower().replace(" ","")
                                     if test_scenario.find(scenario_tag) >= 0 and env_res["version"] >= test["Release"].strip():
                                         scenario_item["JIRA"] = test["JIRA"]
+                                        if(len(test["Owner"].strip()) > 0):
+                                            scenario_item["assigned"] = test["Owner"]
+                                        break
+                                for owner in confluence_res["owner_list"]:
+                                    if scenario_item["feature_file"].lower() in confluence_res["owner_list"][owner]["features"]:
+                                        scenario_item["owner"] = owner
                                         break
                             if scenario["scenario"] not in scenario_res:
                                 scenario_res[scenario["scenario"]] = scenario_item
@@ -842,6 +932,7 @@ if __name__ == "__main__":
     if len(steps_dict) > 0:
         json.dump(java_analysis,open("results.json","w"),indent=4)
 
+    write_container(res)
     if len(res) > 0:
         merge_summary(res)
         json.dump(res,open("analysis.json","w"),indent=4)
