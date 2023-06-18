@@ -702,6 +702,7 @@ if __name__ == "__main__":
         jira_parameters = args.jira.split("|")
         jira_cfgs["teams"] = jira_parameters[0].split(",")
         jira_cfgs["projects"] = jira_parameters[1].split(",")
+        jira_cfgs["task_job"] = jira_parameters[2]
     if args.confluence:
         confluence_res = get_dailyresult(args.confluence)
         jira_url = confluence_res["jira_url"]
