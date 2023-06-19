@@ -748,9 +748,9 @@ if __name__ == "__main__":
         log_maps[env] = [log_bolb.replace("<env>",env) for log_bolb in log_list]
     res = {"configure":{}}
     if len(jira_cfgs) > 0:
+        for key in jira_cfgs:
+            res["configure"][key] = jira_cfgs[key]
 
-        res["configure"]["teams"] = jira_cfgs["teams"]
-        res["configure"]["projects"] = jira_cfgs["projects"]
     performance_res={}
     steps_dict={}
     java_analysis={}
