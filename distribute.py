@@ -843,7 +843,10 @@ if __name__ == "__main__":
                         for jira_issue in confluence_res["jiras"]:
                             ticket = confluence_res["jiras"][jira_issue]
                             if ticket["version"] <= env_res["version"]:
-                                env_res["jiras"].append(ticket)
+                                new_ticket = {}
+                                for key in ticket:
+                                    new_ticket[key] = ticket[key]
+                                env_res["jiras"].append(new_ticket)
                         env_res["owners"] = confluence_res["owner_list"]
                     env_res["builds"][job_name] = {"workable":latestBuild,"latest":str(lastBuild)}
                     env_res["build"] = lastBuild
