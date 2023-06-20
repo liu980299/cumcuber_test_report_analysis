@@ -791,11 +791,12 @@ if __name__ == "__main__":
                         for scenario in job_info[build_no]["scenarioes"]:
                             job_scenarios[build_no][scenario["scenario"]] = scenario
 
+                    start_time = build_res["Started on"].replace(" ","T").split(":")[0]
+                    end_time = build_res["Ended on"].replace(" ", "T").split(":")[0]
+
                     for env in log_maps:
                         if build_res["PORTAL URL"].find(env) >0:
                             log_map = log_maps[env]
-                            start_time = build_res["Started on"].replace(" ","T").split(":")[0]
-                            end_time = build_res["Ended on"].replace(" ", "T").split(":")[0]
                             ssh_log.set_duration(start_time,end_time)
                             for log_blob in log_map:
                                 log_data=log_blob.replace("<job>",job_name)
@@ -820,6 +821,8 @@ if __name__ == "__main__":
                         res[build_res["PORTAL URL"]] = {}
                         res[build_res["PORTAL URL"]]["builds"]={}
                         res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
+                        res[build_res["PORTAL URL"]]["start_time"] = build_res["Started on"].replace(" ","T")
+                        res[build_res["PORTAL URL"]]["end_time"] = build_res["Ended on"].replace(" ","T")
                         for env in teams:
                             if build_res["PORTAL URL"].find(env) > 0:
                                 res[build_res["PORTAL URL"]]["Env"] = env
