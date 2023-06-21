@@ -331,6 +331,10 @@ def get_failed_java(scenario,steps_dict,skips):
 def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     res = {}
     res["url"] = scenario["scenario_url"]
+    if "tags" in scenario:
+        for tag in scenario["tags"]:
+            if tag.find("container") >=0:
+                res["container"] = tag.strip("@")
     feature = ""
     if "console_log" in scenario:
         res["console_log"] = scenario["console_log"].split("\n\u001b[m\u001b[37m")
@@ -692,6 +696,52 @@ def write_container(res):
                     for context in scenario["contexts"]:
                         context["steps"] = []
 
+
+def get_job_consoles(server,job_url,console_logs):
+    response = server.jenkins_request(requests.Request('GET',job_url+"artifact/"))
+    soup = BeautifulSoup(response.text, "html.parser")
+    link_lists = soup.find_all("a")
+    for link in link_lists:
+        if link.text.find("console-container") >=0:
+            log_url = link.attrs["href"]
+            log_response = server.jenkins_request(requests.Request('GET',job_url+"artifact/" + log_url))
+            console_logs[link.text.split(".")[0].split("-")[1]] = account_analysis(log_response.text)
+
+
+def account_analysis(console_text):
+    res = {}
+    tag = "============================================ START SCENARIO ============================================\n"
+    start = console_text.find(tag)
+    log_content = console_text[start + len(tag):]
+    while(start >=0):
+        log_start = log_content.find(tag)
+        scenario_text = log_content[0:log_start]
+        scenario_name = scenario_text.split("\n")[0].split("|")[-1].strip()
+        res[scenario_name] =[]
+        log_content = log_content[log_start + len(tag):]
+        start = log_content.find(tag)
+        console_log = log_content[:start]
+        lines = console_log.split("\n\u001b[m\u001b[37m")
+        for line in lines:
+            m = re.search("([^ ]+@threatmetrix\.com)",line)
+            if m:
+                username = m.group(1)
+                username = username.split("'")[-1]
+                if username not in res[scenario_name]:
+                    res[scenario_name].append(username)
+        if start >=0:
+            log_content = log_content[start + len(tag):]
+
+    return res
+
+def merge_result(timeline_res,console_logs):
+    for key in timeline_res:
+        if key in console_logs:
+            for scenario in timeline_res[key]["scenarios"]:
+                if scenario["name"] in console_logs[key]:
+                    scenario["test_users"] = console_logs[key][scenario["name"]]
+
+
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
@@ -724,6 +774,8 @@ if __name__ == "__main__":
     log_list = args.log_map.split("|")
     lastbuilds = {}
     urls={}
+    console_logs={}
+    console_servers={}
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
@@ -736,7 +788,8 @@ if __name__ == "__main__":
         for job in jobs:
             job_info = server.get_job_info(job["name"])
             lastbuilds[job["name"]] = job_info["lastBuild"]["number"]
-            urls[job["name"]] = job_info["lastBuild"]["url"]
+            urls[job["name"]] = job_info["url"]
+            console_servers[job["name"]] = server
 
 
     files = os.listdir(args.input)
@@ -784,6 +837,7 @@ if __name__ == "__main__":
                         latestBuild = build
                 log_contents = {}
                 build_res = job_info[latestBuild]
+                get_job_consoles(console_servers[job_name], urls[job_name] + latestBuild +"/", console_logs)
                 if "PORTAL URL" in build_res and "Started on" in build_res :
                     job_scenarios = {}
                     for build_no in job_info:
@@ -880,14 +934,19 @@ if __name__ == "__main__":
                             tag_id = job_name + "_" + str(scenario_id)
                             scenario_item = analysis_scenario(tag_id, scenario,log_contents)
                             scenario_item["version"] = env_res["version"]
+
+                            scenario_item["is_new"] = True
                             for build_no in build_list:
-                                if build_no in job_scenarios and scenario['scenario'] in job_scenarios[build_no] and job_scenarios[build_no][scenario['scenario']]['result']=="passed":
-                                    latest_successful_test = job_scenarios[build_no][scenario['scenario']]
-                                    scenario_item["last_success_test"] = {}
-                                    scenario_item["last_success_test"]["version"] = job_info[build_no]["PORTAL VERSION"]
-                                    scenario_item["last_success_test"]["url"] = latest_successful_test["scenario_url"]
-                                    scenario_item["last_success_test"]["test_time"] = latest_successful_test["Started on"]
-                                    break
+                                if build_no in job_scenarios and scenario['scenario'] in job_scenarios[build_no]:
+                                    if job_scenarios[build_no][scenario['scenario']]['result']=="passed":
+                                        latest_successful_test = job_scenarios[build_no][scenario['scenario']]
+                                        scenario_item["last_success_test"] = {}
+                                        scenario_item["last_success_test"]["version"] = job_info[build_no]["PORTAL VERSION"]
+                                        scenario_item["last_success_test"]["url"] = latest_successful_test["scenario_url"]
+                                        scenario_item["last_success_test"]["test_time"] = latest_successful_test["Started on"]
+                                        break
+                                    else:
+                                        scenario_item["is_new"] = False
                             if confluence_res:
                                 scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
                                 for test in confluence_res["tests"]:
@@ -924,6 +983,7 @@ if __name__ == "__main__":
                                     if "passed_tests" not in ticket:
                                         ticket["passed_tests"] = []
                                     ticket["passed_tests"].append({"name":scenario["scenario"],"url":scenario["scenario_url"]})
+                    merge_result(timeline_res, console_logs)
                 if len(performances) > 0:
                     latest_build_info = job_info[latestBuild]
                     if latest_build_info["PORTAL URL"] not in performance_res:
@@ -943,6 +1003,8 @@ if __name__ == "__main__":
     if len(res) > 0:
         merge_summary(res)
         json.dump(res,open("analysis.json","w"),indent=4)
+
+
 
     for env in teams:
         send_flag = True
