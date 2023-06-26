@@ -723,7 +723,7 @@ def account_analysis(console_text):
         console_log = log_content[:start]
         lines = console_log.split("\n\u001b[m\u001b[37m")
         for line in lines:
-            m = re.search("([^ ]+@threatmetrix\.com)",line)
+            m = re.search("([^ ]+@threatmetrix\.com|[^ ]+@lexisnexisrisk\.com)",line)
             if m:
                 username = m.group(1)
                 username = username.split("'")[-1]
