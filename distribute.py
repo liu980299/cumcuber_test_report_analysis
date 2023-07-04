@@ -936,7 +936,7 @@ if __name__ == "__main__":
                             scenario_item["version"] = env_res["version"]
 
                             scenario_item["is_new"] = True
-                            for build_no in build_list:
+                            for build_no in build_list[1:]:
                                 if build_no in job_scenarios and scenario['scenario'] in job_scenarios[build_no]:
                                     if job_scenarios[build_no][scenario['scenario']]['result']=="passed":
                                         latest_successful_test = job_scenarios[build_no][scenario['scenario']]
