@@ -439,8 +439,14 @@ def get_dailyresult(confluence):
             for tr in trs:
                 tds = tr.find_all("td")
                 row = []
+                contents = {}
+                tags = {}
+                index = 0
                 for td in tds:
                     text = str(td)
+                    contents[headers[index]] = text
+                    tags[headers[index]] = td
+                    index += 1
                     if (text.find("userkey") >= 0):
                         matches = re.findall("userkey=\"([^\"]+)\"", text)
                         userkey = matches[len(matches) - 1]
@@ -453,16 +459,26 @@ def get_dailyresult(confluence):
                         row.append(td.text)
                 if len(row) > 0:
                     record = dict(zip(headers,row))
-                    if record["StatusGreenPassRedFail"].lower() == "redfail" and record['Reason'].find('JIRA') >=0:
+                    if record["StatusGreenPassRedFail"].lower() == "redfail":
                         if "Release" in record:
                             m = re.search("(\d+\.\d+)", record["Release"])
                             if m:
                                 record["Release"] = m.group(1)
-                        m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",record['Reason'])
-                        if m:
-                            uuid = m.group(1)
-                            jira_start = record['Reason'].find(uuid)
-                            jira_str = record['Reason'][jira_start+36:]
+                        jira_list = []
+                        if 'Reason' in tags:
+                            macros = tags['Reason'].find_all('ac:structured-macro')
+                            for macro in macros:
+                                parameters = macro.find_all('ac:parameter')
+                                for parameter in parameters:
+                                    if parameter.get("ac:name") == 'key':
+                                        jira_list.append(parameter.text.strip())
+                        jira_str = ",".join(jira_list)
+                        record["JIRA"] = jira_str
+                        # m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",record['Reason'])
+                        # if m:
+                        #     uuid = m.group(1)
+                        #     jira_start = record['Reason'].find(uuid)
+                        #     jira_str = record['Reason'][jira_start+36:]
                         record["Scenario"] = record['Test']
                         m = re.search("<([^>]+)>",record["Test"])
                         if m:
@@ -482,33 +498,33 @@ def get_dailyresult(confluence):
                                         condition_dict["steps"] = [step.strip().lower() for step in condition_item.split(":")[1].split(",")]
                                 condition_list.append(condition_dict)
                             record["conditions"] = condition_list
-                        record["JIRA"] = ""
-                        while jira_str.find('JIRA')>=0 or jira_str.find('https://')>=0:
-                            jira_start =jira_str.find('JIRA')
-                            if jira_start < 0:
-                                jira_start = jira_str.find('https://')
-                                if jira_start == 0:
-                                    jiras = jira_str.split("https://")
-                                    if len(jiras) > 2:
-                                        jira_str = jiras[1].rsplit("/",1) + "https://".join(jiras[2:])
-                                    else:
-                                        jira_str = jiras[1].rsplit("/", 1)[1]
-                            if record["JIRA"] == "" and jira_start > 10:
-                                record["JIRA"] = jira_str[:jira_start]
-                            else:
-                                record["JIRA"] += "," + jira_str[:jira_start]
-                            m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
-                                          jira_str)
-                            if m:
-                                uuid=m.group(1)
-                                jira_start = jira_str.find(uuid)
-                                jira_str = jira_str[jira_start + 36:]
-                            else:
-                                jira_str = jira_str[jira_start:]
-                        if record["JIRA"] == "":
-                            record["JIRA"] = jira_str.split(" ")[0]
-                        else:
-                            record["JIRA"]  += "," + jira_str.split(" ")[0]
+
+                        # while jira_str.find('JIRA')>=0 or jira_str.find('https://')>=0:
+                        #     jira_start =jira_str.find('JIRA')
+                        #     if jira_start < 0:
+                        #         jira_start = jira_str.find('https://')
+                        #         if jira_start == 0:
+                        #             jiras = jira_str.split("https://")
+                        #             if len(jiras) > 2:
+                        #                 jira_str = jiras[1].rsplit("/",1) + "https://".join(jiras[2:])
+                        #             else:
+                        #                 jira_str = jiras[1].rsplit("/", 1)[1]
+                        #     if record["JIRA"] == "" and jira_start > 10:
+                        #         record["JIRA"] = jira_str[:jira_start]
+                        #     else:
+                        #         record["JIRA"] += "," + jira_str[:jira_start]
+                        #     m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+                        #                   jira_str)
+                        #     if m:
+                        #         uuid=m.group(1)
+                        #         jira_start = jira_str.find(uuid)
+                        #         jira_str = jira_str[jira_start + 36:]
+                        #     else:
+                        #         jira_str = jira_str[jira_start:]
+                        # if record["JIRA"] == "":
+                        #     record["JIRA"] = jira_str.split(" ")[0]
+                        # else:
+                        #     record["JIRA"]  += "," + jira_str.split(" ")[0]
                         for jira_id in record["JIRA"].split(","):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)

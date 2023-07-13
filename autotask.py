@@ -187,7 +187,7 @@ if __name__ == "__main__":
     res["tasks"] = data["tasks"]
     new_content = str(soup)
     response = confluence.update_page(page_id,page["title"],new_content)
-    task_json = open("task.json","w")
+    task_json = open("tasks.json","w")
     json.dump(res,task_json,indent=4)
     task_json.close()
 
