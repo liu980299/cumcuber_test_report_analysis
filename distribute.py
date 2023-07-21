@@ -847,7 +847,7 @@ if __name__ == "__main__":
                 performance_result = None
                 java_analysis[job_name] = {}
                 lastBuild = lastbuilds[job_name]
-                latestBuild = ""
+                latestBuild = "0"
                 for build in job_info:
                     if int(build) > int(latestBuild):
                         latestBuild = build
