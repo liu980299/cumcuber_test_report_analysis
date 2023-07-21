@@ -840,7 +840,7 @@ if __name__ == "__main__":
                     if not key == "scenarioes":
                         build_summary[key] = build_info[key]
                 job_summary.append(build_summary)
-            build_list=[key for key in job_info.keys()]
+            build_list=[int(key) for key in job_info.keys()]
             build_list.sort(reverse=True)
             scenario_id = 0
             if job_name in lastbuilds:
@@ -849,7 +849,7 @@ if __name__ == "__main__":
                 lastBuild = lastbuilds[job_name]
                 latestBuild = ""
                 for build in job_info:
-                    if build > latestBuild:
+                    if int(build) > int(latestBuild):
                         latestBuild = build
                 log_contents = {}
                 build_res = job_info[latestBuild]
@@ -952,7 +952,8 @@ if __name__ == "__main__":
                             scenario_item["version"] = env_res["version"]
 
                             scenario_item["is_new"] = True
-                            for build_no in build_list[1:]:
+                            for build_number in build_list[1:]:
+                                build_no = str(build_number)
                                 if build_no in job_scenarios and scenario['scenario'] in job_scenarios[build_no]:
                                     if job_scenarios[build_no][scenario['scenario']]['result']=="passed":
                                         latest_successful_test = job_scenarios[build_no][scenario['scenario']]

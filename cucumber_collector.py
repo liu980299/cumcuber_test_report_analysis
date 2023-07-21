@@ -68,7 +68,16 @@ def getScenario(case_result, lastCompletedBuild = False):
                                     if tag.find("container") >= 0:
                                         tag = tag.strip("@")
                                         log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-" + tag + ".log"
-                                        response = server.jenkins_request(requests.Request('GET', log_url))
+                                        get_result = False
+                                        while not get_result:
+                                            try:
+                                                response = server.jenkins_request(requests.Request('GET', log_url))
+                                                get_result = True
+                                            except requests.exceptions.ConnectionError as e:
+                                                sleep(2)
+                                                print("Connection error ...")
+                                                pass
+
                                         if response.text.find(case_result["scenario"]) > 0:
                                             start = response.text.find(case_result["scenario"])
                                             log_content = response.text[start:]
