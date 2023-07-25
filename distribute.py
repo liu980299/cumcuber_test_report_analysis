@@ -698,19 +698,20 @@ def write_container(res):
     for key in res:
         if key not in ["configure"]:
             env_data = res[key]
-            env_name = env_data["Env"]
-            if (not os.path.exists(env_name)):
-                os.mkdir(env_name)
-            for container in env_data["timeline"]:
-                container_data = env_data["timeline"][container]
-                data_file = env_name + "/" + container + ".json"
-                container_data["url"] = data_file
-                container_file = open(data_file, "w")
-                json.dump(container_data,container_file,indent=4)
-                container_file.close()
-                for scenario in container_data["scenarios"]:
-                    for context in scenario["contexts"]:
-                        context["steps"] = []
+            if "Env" in env_data:
+                env_name = env_data["Env"]
+                if (not os.path.exists(env_name)):
+                    os.mkdir(env_name)
+                for container in env_data["timeline"]:
+                    container_data = env_data["timeline"][container]
+                    data_file = env_name + "/" + container + ".json"
+                    container_data["url"] = data_file
+                    container_file = open(data_file, "w")
+                    json.dump(container_data,container_file,indent=4)
+                    container_file.close()
+                    for scenario in container_data["scenarios"]:
+                        for context in scenario["contexts"]:
+                            context["steps"] = []
 
 
 def get_job_consoles(server,job_url,console_logs):
@@ -833,13 +834,15 @@ if __name__ == "__main__":
             section.title(job_name)
             job_info = json.load(open(file_path, "r"))
             job_summary = []
+            latestBuildFailed = False
             for build in job_info:
                 build_info = job_info[build]
                 build_summary = {}
                 for key in build_info:
                     if not key == "scenarioes":
                         build_summary[key] = build_info[key]
-                job_summary.append(build_summary)
+                if "Started on" in build_summary:
+                    job_summary.append(build_summary)
             build_list=[int(key) for key in job_info.keys()]
             build_list.sort(reverse=True)
             scenario_id = 0
@@ -850,7 +853,10 @@ if __name__ == "__main__":
                 latestBuild = "0"
                 for build in job_info:
                     if int(build) > int(latestBuild):
-                        latestBuild = build
+                        if "Started on" in job_info[build]:
+                            latestBuild = build
+                        else:
+                            latestBuildFailed = True
                 log_contents = {}
                 build_res = job_info[latestBuild]
                 get_job_consoles(console_servers[job_name], urls[job_name] + latestBuild +"/", console_logs)
@@ -890,6 +896,7 @@ if __name__ == "__main__":
                     if build_res["PORTAL URL"] not in res:
                         res[build_res["PORTAL URL"]] = {}
                         res[build_res["PORTAL URL"]]["builds"]={}
+                        res[build_res["PORTAL URL"]]["last_build_failed"] = latestBuildFailed
                         res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
                         res[build_res["PORTAL URL"]]["start_time"] = build_res["Started on"].replace(" ","T")
                         res[build_res["PORTAL URL"]]["end_time"] = build_res["Ended on"].replace(" ","T")
@@ -1026,7 +1033,7 @@ if __name__ == "__main__":
     for env in teams:
         send_flag = True
         for portal_url in res:
-            if portal_url.find(env) >= 0:
+            if portal_url.find(env) >= 0 and not res[portal_url]["last_build_failed"]:
                 env_res = res[portal_url]
                 for job in env_res["builds"]:
                     job_builds = env_res["builds"][job]
