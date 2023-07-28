@@ -35,6 +35,6 @@
   <app-root></app-root>
 <script src="{{report_url}}/runtime.2513311af31ad128.js" type="module"></script>
   <script src="{{report_url}}/polyfills.bddc24706bb8ce46.js" type="module"></script>
-  <script src="{{report_url}}/main.7e223a3994f3337e.js" type="module"></script>
+  <script src="{{report_url}}/main.c6961f87fc7d49ea.js" type="module"></script>
 
 </body></html>
