@@ -177,6 +177,11 @@ if __name__ == "__main__":
     for env in data["tasks"]:
         tasks = data["tasks"][env]
         for task in tasks:
+            jiras = task["jiras"]
+            new_jiras = []
+            for jira in jiras:
+                if jira not in new_jiras:
+                    new_jiras.append(jira)
             for scenario in task["scenarios"]:
                 if "new_comment" in scenario and scenario["new_comment"]:
                     if "comments" in scenario:
@@ -184,6 +189,7 @@ if __name__ == "__main__":
                     else:
                         scenario["comments"] = [scenario["new_comment"]]
                     scenario["new_comment"] = None
+            task["jiras"] = new_jiras
     res["tasks"] = data["tasks"]
     new_content = str(soup)
     response = confluence.update_page(page_id,page["title"],new_content)
