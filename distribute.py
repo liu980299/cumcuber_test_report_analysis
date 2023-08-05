@@ -481,6 +481,12 @@ def get_dailyresult(confluence):
                         #     jira_start = record['Reason'].find(uuid)
                         #     jira_str = record['Reason'][jira_start+36:]
                         record["Scenario"] = record['Test']
+                        if 'Test' in tags:
+                            links = tags['Test'].find_all('a')
+                            record['scenarios'] = []
+                            for link in links:
+                                record['scenarios'].append(link.text)
+
                         m = re.search("<([^>]+)>",record["Test"])
                         if m:
                             condition_str = m.group(1)
@@ -530,7 +536,7 @@ def get_dailyresult(confluence):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)
                                 creator = issue.get_field("creator")
-                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator)}
+                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator),"scenarios":record["scenarios"]}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     return res
@@ -977,10 +983,11 @@ if __name__ == "__main__":
                                     else:
                                         scenario_item["is_new"] = False
                             if confluence_res:
-                                scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
+                                # scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
                                 for test in confluence_res["tests"]:
-                                    test_scenario = test["Scenario"].lower().replace(" ","")
-                                    if test_scenario.find(scenario_tag) >= 0 and env_res["version"] >= test["Release"].strip():
+                                    # test_scenario = test["Scenario"].lower().replace(" ","")
+                                    test_scenarios = test["scenarios"]
+                                    if scenario["scenario"] in test_scenarios and env_res["version"] >= test["Release"].strip():
                                         scenario_item["JIRA"] = test["JIRA"]
                                         if(len(test["Owner"].strip()) > 0):
                                             scenario_item["assigned"] = test["Owner"]
@@ -1005,10 +1012,11 @@ if __name__ == "__main__":
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                         else:
-                            scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
+                            # scenario_tag = scenario["scenario"].lower().replace(" ","")[:20]
                             for ticket in env_res["jiras"]:
-                                test_scenario = ticket["scenario_text"].lower().replace(" ", "")
-                                if test_scenario.find(scenario_tag) >=0:
+                                # test_scenario = ticket["scenario_text"].lower().replace(" ", "")
+                                test_scenarios = ticket["scenarios"]
+                                if scenario["scenario"] in test_scenarios:
                                     if "passed_tests" not in ticket:
                                         ticket["passed_tests"] = []
                                     ticket["passed_tests"].append({"name":scenario["scenario"],"url":scenario["scenario_url"]})
