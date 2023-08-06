@@ -47,6 +47,7 @@ if __name__ == "__main__":
     test_file = open("test.in","w")
     test_file.write(content)
     test_file.close()
+    all_jiras = []
     tables = soup.find_all("table")
     macros = {}
     for table in tables:
@@ -56,7 +57,6 @@ if __name__ == "__main__":
             headers.append(th.text)
 
         if "Release" in headers:
-            jira_list = []
             trs = table.find_all("tr")
             last_tr = trs[0]
             for tr in trs:
@@ -121,10 +121,13 @@ if __name__ == "__main__":
                                 tr.replace_with(tr_new)
                                 issue=jira.issue(a_jira["id"])
                                 a_jira["summary"] = issue.get_field("summary")
-                                a_jira["creator"] = issue.get_field("creator")
+                                a_jira["creator"] = str(issue.get_field("creator"))
                                 a_jira["updated"] = True
                                 a_jira["scenario_text"] = scenario_text
                                 in_updates = True
+                                all_jira_ids = [ ticket["id"] for ticket in all_jiras]
+                                if not a_jira["id"] in all_jira_ids:
+                                    all_jiras.append(a_jira)
                                 break
                         if not in_updates:
                             for jira_id in jira_list:
@@ -132,12 +135,23 @@ if __name__ == "__main__":
                                 new_jira["id"] = jira_id
                                 issue = jira.issue(jira_id)
                                 new_jira["summary"] = issue.get_field("summary")
-                                new_jira["creator"] = issue.get_field("creator")
-                                new_jira["scenario"] = record["scenarios"]
+                                new_jira["creator"] = str(issue.get_field("creator"))
+                                new_jira["scenarios"] = record["scenarios"]
+                                new_jira["version"] = record["Release"]
                                 new_jira["scenario_text"] = record["Test"]
+                                all_jira_ids = [ ticket["id"] for ticket in all_jiras]
+                                if not new_jira["id"] in all_jira_ids:
+                                    all_jiras.append(new_jira)
+
             for a_jira in jiras:
                 version = ".".join(a_jira["version"].split(".")[:2])
                 if "updated" not in a_jira:
+                    issue = jira.issue(a_jira["id"])
+                    a_jira["summary"] = issue.get_field("summary")
+                    a_jira["creator"] = str(issue.get_field("creator"))
+                    all_jira_ids = [ticket["id"] for ticket in all_jiras]
+                    if not a_jira["id"] in all_jira_ids:
+                        all_jiras.append(a_jira)
                     new_tr = "<tr>"
                     for header in headers:
                         if header == "Since":
