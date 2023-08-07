@@ -97,28 +97,32 @@ if __name__ == "__main__":
                                 record['scenarios'].append({"url":link.get('href'),"name":link.text})
                         for a_jira in jiras:
                             if jira_str.lower().find(a_jira["id"].lower()) >= 0:
-                                new_tr = "<tr>"
-                                scenario_text = ""
-                                for header in headers:
-                                    if header == "Test":
-                                        new_content = "<td>"
-                                        test_content = ""
-                                        for scenario in a_jira["scenarios"]:
-                                            test_content += "<a target=\"_blank\" href=\"" + scenario["url"] + "\">" + \
-                                                           scenario["name"] + "</a><br/>"
-                                            scenario_text += scenario["name"] + "\n"
+                                if (len(a_jira["scenarios"]) == 0):
+                                    tr.decompose()
+                                else:
+                                    new_tr = "<tr>"
+                                    scenario_text = ""
+                                    for header in headers:
+                                        if header == "Test":
+                                            new_content = "<td>"
+                                            test_content = ""
+                                            for scenario in a_jira["scenarios"]:
+                                                test_content += "<a target=\"_blank\" href=\"" + scenario["url"] + "\">" + \
+                                                               scenario["name"] + "</a><br/>"
+                                                scenario_text += scenario["name"] + "\n"
 
-                                        if len(a_jira["scenarios"]) > 5:
-                                            error_num = len(a_jira["scenarios"])
-                                            error_str = "Failed " + str(error_num) + " scenarios"
-                                            test_content = expand_macro.format(error_str=error_str,content=test_content)
+                                            if len(a_jira["scenarios"]) > 5:
+                                                error_num = len(a_jira["scenarios"])
+                                                error_str = "Failed " + str(error_num) + " scenarios"
+                                                test_content = expand_macro.format(error_str=error_str,content=test_content)
 
-                                        new_content += test_content + "</td>"
-                                    else:
-                                        new_tr += contents[header]
-                                new_tr += "<td>"
-                                tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
-                                tr.replace_with(tr_new)
+                                            new_content += test_content + "</td>"
+                                            new_tr += new_content
+                                        else:
+                                            new_tr += contents[header]
+                                    new_tr += "</tr>"
+                                    tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
+                                    tr.replace_with(tr_new)
                                 issue=jira.issue(a_jira["id"])
                                 a_jira["summary"] = issue.get_field("summary")
                                 a_jira["creator"] = str(issue.get_field("creator"))
@@ -187,7 +191,7 @@ if __name__ == "__main__":
     # test_file.write(new_content)
     # test_file.close()
     # print(new_content)
-    res["jiras"] = jiras
+    res["jiras"] = all_jiras
     for env in data["tasks"]:
         tasks = data["tasks"][env]
         for task in tasks:
