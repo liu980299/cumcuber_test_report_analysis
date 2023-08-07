@@ -123,11 +123,11 @@ if __name__ == "__main__":
                                     new_tr += "</tr>"
                                     tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
                                     tr.replace_with(tr_new)
+                                    a_jira["scenario_text"] = scenario_text
                                 issue=jira.issue(a_jira["id"])
                                 a_jira["summary"] = issue.get_field("summary")
                                 a_jira["creator"] = str(issue.get_field("creator"))
                                 a_jira["updated"] = True
-                                a_jira["scenario_text"] = scenario_text
                                 in_updates = True
                                 all_jira_ids = [ ticket["id"] for ticket in all_jiras]
                                 if not a_jira["id"] in all_jira_ids:
