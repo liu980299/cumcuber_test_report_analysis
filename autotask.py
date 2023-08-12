@@ -300,7 +300,7 @@ if __name__ == "__main__":
     json.dump(res,task_json,indent=4)
     task_json.close()
     for env in teams:
-        if len(teams[env].payload["attachments"][0]["body"]) > 0:
+        if len(teams[env].payload["attachments"][0]["content"]["body"]) > 0:
             teams[env].send()
 
 
