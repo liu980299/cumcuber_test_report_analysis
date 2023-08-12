@@ -389,6 +389,7 @@ def get_dailyresult(confluence):
     else:
         jira_server = "https://" + jira_url[8:].split("/")[0]
     jira = JIRA(server=jira_server, token_auth=jira_auth)
+    username = jira.current_user()
     page = confluence.get_page_by_id(page_id, expand="body.storage")
     content = page["body"]["storage"]["value"]
     soup = BeautifulSoup(content, "html.parser")
@@ -539,6 +540,7 @@ def get_dailyresult(confluence):
                                 res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator),"scenarios":record["scenarios"]}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
+    res["jira_user"] = username
     return res
 
 def getContext(step,context_flags,previous_context):
@@ -832,6 +834,10 @@ if __name__ == "__main__":
         for key in jira_cfgs:
             res["configure"][key] = jira_cfgs[key]
 
+    if "jira_user" in confluence_res:
+        res["configure"]["jira_user"] = confluence_res["jira_user"]
+
+
     performance_res={}
     steps_dict={}
     java_analysis={}
@@ -1107,6 +1113,9 @@ if __name__ == "__main__":
             try:
                 # teams[env].printme()
                 teams[env].send()
+                message_file = open(env + "_message.json","w")
+                json.dump(teams[env].payload,message_file,indent=4)
+                message_file.close()
             except Exception as e:
                 print(e)
                 print("*** Could not send message to Teams")

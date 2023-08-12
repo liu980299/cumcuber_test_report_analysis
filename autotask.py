@@ -2,7 +2,8 @@ from bs4 import BeautifulSoup
 from atlassian import Confluence
 import datetime,html
 import argparse,json,re
-
+import pymsteams
+import copy
 from jira import JIRA
 
 parser = argparse.ArgumentParser()
@@ -10,6 +11,8 @@ parser.add_argument("--confluence",help="conflence source and confidential")
 parser.add_argument("--data",help="data for update", required=True)
 parser.add_argument("--task", help="task build number", required=True)
 parser.add_argument("--jira", help="jira configure", required=True)
+parser.add_argument("--teams", help="team web hooker", required=True)
+parser.add_argument("--domain", help="teams domain", required=True)
 args = parser.parse_args()
 status_macro = """<ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">Red</ac:parameter><ac:parameter ac:name="title">FAIL</ac:parameter></ac:structured-macro>"""
 jira_macro = """<ac:structured-macro ac:name="jira" ac:schema-version="1" ><ac:parameter ac:name="server">JIRA</ac:parameter><ac:parameter ac:name="serverId">{server}</ac:parameter><ac:parameter ac:name="key">{id}</ac:parameter></ac:structured-macro>"""
@@ -19,12 +22,40 @@ expand_macro = """<ac:structured-macro ac:name="expand" ac:schema-version="1">
         {content}
     </ac:rich-text-body>
 </ac:structured-macro>"""
+message_payload={
+    "type": "message",
+    "attachments": [
+        {
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "content": {
+            "type": "AdaptiveCard",
+            "body": [
+
+            ],
+            "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+            "version": "1.0",
+            "msteams": {
+                "entities": [
+
+                ]
+            }
+        }
+    }
+]
+}
 if __name__ == "__main__":
     confluence = args.confluence
     jira_server,jira_auth = args.jira.split("|")
+    domain = args.domain
     jira = JIRA(server=jira_server, token_auth=jira_auth)
     raw_data = args.data
     data = json.loads(raw_data)
+    teams = {}
+    for team_str in args.teams.split(","):
+        (env, webhook) = team_str.split("|", 1)
+        teams[env] = pymsteams.connectorcard(webhook)
+        teams[env].payload = copy.copy(message_payload)
+
     user_data = data["user"]
     user = user_data["email"]
     res = {}
@@ -39,11 +70,13 @@ if __name__ == "__main__":
     confluence = Confluence(server_url, username, token=token, verify_ssl=False)
     response = confluence.get(f'/rest/api/user?username={user}')
     user_key = response["userKey"]
+    team_contacts = {}
     print(user_key)
     page = confluence.get_page_by_id(page_id, expand="body.storage")
     properties = confluence.get_page_properties(page_id)
     content = page["body"]["storage"]["value"]
     soup = BeautifulSoup(content, "html.parser")
+    owner_dict = {}
     test_file = open("test.in","w")
     test_file.write(content)
     test_file.close()
@@ -55,6 +88,42 @@ if __name__ == "__main__":
         headers = []
         for th in ths:
             headers.append(th.text)
+        if "QA" in headers:
+            trs = table.find_all("tr")
+            owner_list = {}
+            for tr in trs:
+                tds = tr.find_all("td")
+                row = []
+                index = 0
+                owner = {}
+                for td in tds:
+                    row.append(str(td))
+                    text = str(td)
+                    if (text.find("userkey") >= 0):
+                        matches = re.findall("userkey=\"([^\"]+)\"", text)
+                        userkey = matches[len(matches) - 1]
+                        owner[headers[index]] = userkey
+                    else:
+                        if text.find(".feature") > 0 and index == 0:
+                            index += 1
+                        owner[headers[index]] = td.text
+                    index += 1
+                if len(owner) > 1 and "QA" in owner:
+                    ldap_user = owner["LDAP User"].lower()
+                    if ldap_user not in owner_list:
+                        owner_dict[owner["QA"]] = ldap_user
+                        print(owner)
+                        user = confluence.get_user_details_by_userkey(owner["QA"])
+                        owner_list[ldap_user] = {}
+                        owner_list[ldap_user]["user"] = user["displayName"]
+                        if user["displayName"] not in team_contacts:
+                            team_contacts[user["displayName"]] = ldap_user + "@" +domain
+                        owner_list[ldap_user]["email"] = user["username"]
+                        owner_list[ldap_user]["key"] = owner["QA"]
+                        owner_list[ldap_user]["features"] = [owner["Feature File"].lower()]
+                    else:
+                        if "QA" in owner:
+                            owner_list[ldap_user]["features"].append(owner["Feature File"].lower())
 
         if "Release" in headers:
             trs = table.find_all("tr")
@@ -197,16 +266,32 @@ if __name__ == "__main__":
         for task in tasks:
             jiras = task["jiras"]
             new_jiras = []
+            teams_message ={"type":"TextBlock","text":"##<at>"+task["owner"]+"</at> new tasks:\n\n"}
+            scenario_messages = teams_message["text"]
             for jira in jiras:
                 if jira not in new_jiras:
                     new_jiras.append(jira)
             for scenario in task["scenarios"]:
-                if "new_comment" in scenario and scenario["new_comment"]:
-                    if "comments" in scenario:
-                        scenario["comments"].append(scenario["new_comment"])
+                scenario_item = task["scenarios"][scenario]
+                if "new_comment" in scenario_item and scenario_item["new_comment"]:
+                    if "comments" in scenario_item:
+                        scenario_item["comments"].append(scenario_item["new_comment"])
                     else:
-                        scenario["comments"] = [scenario["new_comment"]]
+                        scenario_item["comments"] = [scenario_item["new_comment"]]
                     scenario["new_comment"] = None
+                if scenario_item["changed"]:
+                    scenario_messages += "\n\n- [{0}]({1})".format(scenario_item["name"],scenario_item["work_url"])
+            if task["changed"]:
+                mention = {
+                        "type": "mention",
+                        "text": "<at>" + task["owner"] + "</at>",
+                        "mentioned": {
+                            "id": team_contacts[task["owner"]],
+                            "name": task["owner"]
+                        }
+                    }
+                teams[task["env"]].payload["attachments"][0]["body"].append(teams_message)
+                teams[task["env"]].payload["attachments"][0]["msteams"]["entities"].append(mention)
             task["jiras"] = new_jiras
     res["tasks"] = data["tasks"]
     new_content = str(soup)
@@ -214,5 +299,8 @@ if __name__ == "__main__":
     task_json = open("tasks.json","w")
     json.dump(res,task_json,indent=4)
     task_json.close()
+    for env in teams:
+        if len(teams[env].payload["attachments"][0]["body"]) > 0:
+            teams[env].send()
 
 
