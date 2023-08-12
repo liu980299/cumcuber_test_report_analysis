@@ -290,8 +290,8 @@ if __name__ == "__main__":
                             "name": task["owner"]
                         }
                     }
-                teams[task["env"]].payload["attachments"][0]["body"].append(teams_message)
-                teams[task["env"]].payload["attachments"][0]["msteams"]["entities"].append(mention)
+                teams[task["env"]].payload["attachments"][0]["content"]["body"].append(teams_message)
+                teams[task["env"]].payload["attachments"][0]["content"]["msteams"]["entities"].append(mention)
             task["jiras"] = new_jiras
     res["tasks"] = data["tasks"]
     new_content = str(soup)
