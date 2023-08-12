@@ -281,7 +281,7 @@ if __name__ == "__main__":
                     scenario["new_comment"] = None
                 if scenario_item["changed"]:
                     scenario_messages += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
-            if task["changed"]:
+            if "changed" in task and task["changed"]:
                 mention = {
                         "type": "mention",
                         "text": "<at>" + task["owner"] + "</at>",
