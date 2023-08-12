@@ -54,7 +54,7 @@ if __name__ == "__main__":
     for team_str in args.teams.split(","):
         (env, webhook) = team_str.split("|", 1)
         teams[env] = pymsteams.connectorcard(webhook)
-        teams[env].payload = copy.copy(message_payload)
+        teams[env].payload = copy.deepcopy(message_payload)
 
     user_data = data["user"]
     user = user_data["email"]
@@ -266,8 +266,7 @@ if __name__ == "__main__":
         for task in tasks:
             jiras = task["jiras"]
             new_jiras = []
-            teams_message ={"type":"TextBlock","text":"##<at>"+task["owner"]+"</at> new tasks:\n\n"}
-            scenario_messages = teams_message["text"]
+            teams_message ={"type":"TextBlock","text":"# **<at>"+task["owner"]+"</at> new tasks:**\n\n","wrap":True}
             for jira in jiras:
                 if jira not in new_jiras:
                     new_jiras.append(jira)
@@ -280,7 +279,7 @@ if __name__ == "__main__":
                         scenario_item["comments"] = [scenario_item["new_comment"]]
                     scenario["new_comment"] = None
                 if scenario_item["changed"]:
-                    scenario_messages += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
+                    teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
             if "changed" in task and task["changed"]:
                 mention = {
                         "type": "mention",
