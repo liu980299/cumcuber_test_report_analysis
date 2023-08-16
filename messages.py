@@ -20,6 +20,22 @@ def teams_send(webhook):
         time.sleep(10)
         teams_send(webhook)
 
+def get_messages(message_json_url):
+    try:
+        response = server.jenkins_request(requests.Request('GET', message_json_url))
+        if response.status_code == 200:
+            messages_json = json.loads(response.text)
+            for env in messages_json:
+                if env in teams:
+                    teams[env].payload = messages_json[env]
+                    teams_send(teams[env])
+        return True
+    except requests.exceptions.HTTPError as e:
+        print("no messages found for " + job_name)
+        return False
+    except jenkins.NotFoundException as e:
+        return False
+
 
 if __name__ == "__main__":
     server_url, job_name, username, password = args.jenkins.split("|")
@@ -51,47 +67,22 @@ if __name__ == "__main__":
                 for build_info in builds:
                     if build_info["number"] > int(build):
                         message_json_url = build_info["url"] + "/" + job_reports[job_name] + "/messages.json"
-                        response = server.jenkins_request(requests.Request('GET',message_json_url))
-                        if response.status_code == 200:
+                        if get_messages(message_json_url):
                             if build_info["number"] > max_build:
                                 max_build = build_info["number"]
-                            messages_json = json.loads(response.text)
-                            for env in messages_json:
-                                if env in teams:
-                                    teams[env].payload = messages_json[env]
-                                    teams[env].send()
             else:
                 last_build = job_info["lastSuccessfulBuild"]["number"]
                 if last_build > int(build):
                     message_json_url = job_info["lastSuccessfulBuild"]["url"] + "/" + job_reports[job_name] + "/messages.json"
-                    response = server.jenkins_request(requests.Request('GET', message_json_url))
-                    if response.status_code == 200:
+                    if get_messages(message_json_url):
                         if build_info["number"] > max_build:
-                            max_build = build_info["number"]
-                        messages_json = json.loads(response.text)
-                        for env in messages_json:
-                            if env in teams:
-                                teams[env].payload = messages_json[env]
-                                teams_send(teams[env])
+                            max_build = last_build
             res[job_name] = max_build
         else:
             last_build = job_info["lastSuccessfulBuild"]["number"]
             res[job_name] = last_build
             message_json_url = job_info["lastSuccessfulBuild"]["url"] + "/" + job_reports[job_name] + "/messages.json"
-            try:
-                response = server.jenkins_request(requests.Request('GET', message_json_url))
-                if response.status_code == 200:
-                    messages_json = json.loads(response.text)
-                    for env in messages_json:
-                        if env in teams:
-                            teams[env].payload = messages_json[env]
-                            teams_send(teams[env])
-
-            except requests.exceptions.HTTPError as e:
-                print("no messages found for " + job_name)
-                pass
-            except jenkins.NotFoundException as e:
-                pass
+            get_messages(message_json_url)
 
     message_json = open("messages.json","w")
     json.dump(res,message_json,indent=4)
