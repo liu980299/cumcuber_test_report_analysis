@@ -52,7 +52,7 @@ if __name__ == "__main__":
                     if build_info["number"] > int(build):
                         message_json_url = build_info["url"] + "/" + job_reports[job_name] + "/messages.json"
                         response = server.jenkins_request(requests.Request('GET',message_json_url))
-                        if response.status_code == "200":
+                        if response.status_code == 200:
                             if build_info["number"] > max_build:
                                 max_build = build_info["number"]
                             messages_json = json.loads(response.text)
