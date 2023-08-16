@@ -1,8 +1,9 @@
 from bs4 import BeautifulSoup
 from atlassian import Confluence
-import datetime,html
+import datetime,requests
 import argparse,json,re
 import pymsteams
+import jenkins
 import copy
 from jira import JIRA
 
@@ -13,6 +14,7 @@ parser.add_argument("--task", help="task build number", required=True)
 parser.add_argument("--jira", help="jira configure", required=True)
 parser.add_argument("--teams", help="team web hooker", required=True)
 parser.add_argument("--domain", help="teams domain", required=True)
+parser.add_argument("--jenkins", help="job url", required=True)
 args = parser.parse_args()
 status_macro = """<ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">Red</ac:parameter><ac:parameter ac:name="title">FAIL</ac:parameter></ac:structured-macro>"""
 jira_macro = """<ac:structured-macro ac:name="jira" ac:schema-version="1" ><ac:parameter ac:name="server">JIRA</ac:parameter><ac:parameter ac:name="serverId">{server}</ac:parameter><ac:parameter ac:name="key">{id}</ac:parameter></ac:structured-macro>"""
@@ -45,6 +47,16 @@ message_payload={
 }
 if __name__ == "__main__":
     confluence = args.confluence
+    server_url,job_name,username,password = args.jenkins.split("|")
+    server = jenkins.Jenkins(server_url,username,password)
+    job_info = server.get_job_info(job_name)
+    last_successful_task = job_info["lastSuccessfulBuild"]["url"] + "tasks/tasks.json"
+    response = server.jenkins_request(requests.Request('GET',last_successful_task))
+    last_task = json.loads(response.text)
+    monitor_scenarios = {}
+    if "monitor_scenarios" in last_task:
+        monitor_scenarios = last_task["monitor_scenarios"]
+
     jira_server,jira_auth = args.jira.split("|")
     domain = args.domain
     jira = JIRA(server=jira_server, token_auth=jira_auth)
@@ -278,6 +290,21 @@ if __name__ == "__main__":
                     else:
                         scenario_item["comments"] = [scenario_item["new_comment"]]
                     scenario["new_comment"] = None
+                if scenario in monitor_scenarios:
+                    history_item = {}
+                    for key in scenario_item:
+                        if not key == "history":
+                            history_item[key] = scenario_item[key]
+                    monitor_scenarios[scenario].append(history_item)
+                    scenario_item["history"] = monitor_scenarios[scenario]
+                    comments = []
+                    for item in monitor_scenarios[scenario]:
+                        for a_comment in item["comments"]:
+                            comments.append(a_comment)
+                    scenario_item["comments"] = comments
+                else:
+                    if "is_monitored" in scenario_item and scenario_item["is_monitored"]:
+                        monitor_scenarios[scenario] = [scenario_item]
                 if scenario_item["changed"]:
                     teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
             if "changed" in task and task["changed"]:
@@ -293,13 +320,18 @@ if __name__ == "__main__":
                 teams[task["env"]].payload["attachments"][0]["content"]["msteams"]["entities"].append(mention)
             task["jiras"] = new_jiras
     res["tasks"] = data["tasks"]
+    res["monitor_scenarios"] = monitor_scenarios
     new_content = str(soup)
     response = confluence.update_page(page_id,page["title"],new_content)
     task_json = open("tasks.json","w")
     json.dump(res,task_json,indent=4)
     task_json.close()
+    messages_json = {}
     for env in teams:
         if len(teams[env].payload["attachments"][0]["content"]["body"]) > 0:
-            teams[env].send()
+            messages_json[env] = teams[env].payload
+    json_file = open("messages.json","w")
+    json.dump(messages_json,json_file,indent=4)
+    json_file.close()
 
 
