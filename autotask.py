@@ -333,5 +333,5 @@ if __name__ == "__main__":
     json_file = open("messages.json","w")
     json.dump(messages_json,json_file,indent=4)
     json_file.close()
-    server.build_job(message_job)
+    server.build_job(message_job,token=message_job + "_token")
 
