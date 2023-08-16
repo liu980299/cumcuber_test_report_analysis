@@ -47,7 +47,7 @@ message_payload={
 }
 if __name__ == "__main__":
     confluence = args.confluence
-    server_url,job_name,username,password = args.jenkins.split("|")
+    server_url,job_name,username,password,message_job = args.jenkins.split("|")
     server = jenkins.Jenkins(server_url,username,password)
     job_info = server.get_job_info(job_name)
     last_successful_task = job_info["lastSuccessfulBuild"]["url"] + "tasks/tasks.json"
@@ -333,5 +333,5 @@ if __name__ == "__main__":
     json_file = open("messages.json","w")
     json.dump(messages_json,json_file,indent=4)
     json_file.close()
-
+    server.build_job(message_job)
 
