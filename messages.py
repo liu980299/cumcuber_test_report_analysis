@@ -85,7 +85,7 @@ if __name__ == "__main__":
                     for env in messages_json:
                         if env in teams:
                             teams[env].payload = messages_json[env]
-                            teams[env].send()
+                            teams_send(teams[env])
 
             except requests.exceptions.HTTPError as e:
                 print("no messages found for " + job_name)
