@@ -49,7 +49,7 @@ if __name__ == "__main__":
             if job_name in bookmarks:
                 builds = job_info["builds"]
                 for build_info in builds:
-                    if build_info["number"] > str(build):
+                    if build_info["number"] > int(build):
                         message_json_url = build_info["url"] + "/" + job_reports[job_name] + "/messages.json"
                         response = server.jenkins_request(requests.Request('GET',message_json_url))
                         if response.status_code == "200":
@@ -62,7 +62,7 @@ if __name__ == "__main__":
                                     teams[env].send()
             else:
                 last_build = job_info["lastSuccessfulBuild"]["number"]
-                if last_build > str(build):
+                if last_build > int(build):
                     message_json_url = job_info["lastSuccessfulBuild"]["url"] + "/" + job_reports[job_name] + "/messages.json"
                     response = server.jenkins_request(requests.Request('GET', message_json_url))
                     if response.status_code == 200:
