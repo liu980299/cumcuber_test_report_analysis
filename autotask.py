@@ -9,7 +9,6 @@ from jira import JIRA
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--confluence",help="conflence source and confidential")
-parser.add_argument("--data",help="data for update", required=True)
 parser.add_argument("--task", help="task build number", required=True)
 parser.add_argument("--jira", help="jira configure", required=True)
 parser.add_argument("--teams", help="team web hooker", required=True)
@@ -60,8 +59,10 @@ if __name__ == "__main__":
     jira_server,jira_auth = args.jira.split("|")
     domain = args.domain
     jira = JIRA(server=jira_server, token_auth=jira_auth)
-    raw_data = args.data
-    data = json.loads(raw_data)
+    # raw_data = args.data
+    data_file = open("data.json","r")
+    data = json.load(data_file)
+    data_file.close()
     teams = {}
     for team_str in args.teams.split(","):
         (env, webhook) = team_str.split("|", 1)
