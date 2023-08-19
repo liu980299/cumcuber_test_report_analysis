@@ -231,7 +231,16 @@ if __name__ == "__main__":
             for a_jira in jiras:
                 version = ".".join(a_jira["version"].split(".")[:2])
                 if "updated" not in a_jira:
-                    issue = jira.issue(a_jira["id"])
+                    if "is_new" in a_jira and a_jira["is_new"]:
+                        issue = jira_server.create_issue(project=jira["project"], summary=jira["summary"],
+                                                      description=jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation'],
+                                                             fixVersions=[{"name":"Triage"}],customfield_12257=jira["steps"],
+                                                             reporter={"name": user_data["username"]},assignee={"name":user_data["username"]})
+                        print(issue)
+                        a_jira["original_id"] = a_jira["id"]
+                        a_jira["id"] = issue.id
+                    else:
+                        issue = jira.issue(a_jira["id"])
                     a_jira["summary"] = issue.get_field("summary")
                     a_jira["creator"] = str(issue.get_field("creator"))
                     all_jira_ids = [ticket["id"] for ticket in all_jiras]
@@ -284,12 +293,16 @@ if __name__ == "__main__":
                     new_jiras.append(jira)
             for scenario in task["scenarios"]:
                 scenario_item = task["scenarios"][scenario]
+                if scenario_item["changed"]:
+                    teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
+
                 if "new_comment" in scenario_item and scenario_item["new_comment"]:
+                    teams_message["text"] += " --" + scenario_item["new_comment"]
                     if "comments" in scenario_item:
                         scenario_item["comments"].append(scenario_item["new_comment"])
                     else:
                         scenario_item["comments"] = [scenario_item["new_comment"]]
-                    scenario["new_comment"] = None
+                    scenario_item["new_comment"] = None
                 if scenario in monitor_scenarios:
                     history_item = {}
                     for key in scenario_item:
@@ -305,8 +318,6 @@ if __name__ == "__main__":
                 else:
                     if "is_monitored" in scenario_item and scenario_item["is_monitored"]:
                         monitor_scenarios[scenario] = [scenario_item]
-                if scenario_item["changed"]:
-                    teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
             if "changed" in task and task["changed"]:
                 mention = {
                         "type": "mention",
