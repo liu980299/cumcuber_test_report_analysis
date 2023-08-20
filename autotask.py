@@ -294,11 +294,13 @@ if __name__ == "__main__":
                     new_jiras.append(jira)
             for scenario in task["scenarios"]:
                 scenario_item = task["scenarios"][scenario]
+                new_comment = {}
                 if scenario_item["changed"]:
                     teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
 
                 if "new_comment" in scenario_item and scenario_item["new_comment"]:
-                    teams_message["text"] += " --" + scenario_item["new_comment"]
+                    teams_message["text"] += " --" + scenario_item["new_comment"]["content"]
+                    new_comment = scenario_item["new_comment"]
                     if "comments" in scenario_item:
                         scenario_item["comments"].append(scenario_item["new_comment"])
                     else:
@@ -317,7 +319,8 @@ if __name__ == "__main__":
                             comments.append(a_comment)
                     scenario_item["comments"] = comments
                 else:
-                    if "is_monitored" in scenario_item and scenario_item["is_monitored"]:
+                    if "is_monitored" in new_comment and new_comment["is_monitored"]:
+                        scenario_item["is_monitored"] = True
                         monitor_scenarios[scenario] = [scenario_item]
             if "changed" in task and task["changed"]:
                 mention = {
