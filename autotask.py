@@ -233,7 +233,7 @@ if __name__ == "__main__":
                 if "updated" not in a_jira:
                     if "is_new" in a_jira and a_jira["is_new"]:
                         issue = jira.create_issue(project=a_jira["project"], summary=a_jira["summary"],
-                                                      description=a_jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation'],
+                                                      description=a_jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation',a_jira["team"]],
                                                              fixVersions=[{"name":"Triage"}],customfield_12257=a_jira["steps"],
                                                              assignee={"name":user_data["email"]})
                         print(issue)
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                         scenario_item["comments"] = [scenario_item["new_comment"]]
                     scenario_item["new_comment"] = None
                 if scenario in monitor_scenarios:
-                    if not new_comment["is_monitored"]:
+                    if len(new_comment) > 0 and not new_comment["is_monitored"]:
                         scenario_item["is_monitored"] = False
                         if "history" in scenario_item:
                             scenario_item.pop("history")
