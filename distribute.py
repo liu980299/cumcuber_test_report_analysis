@@ -1047,8 +1047,7 @@ if __name__ == "__main__":
         merge_summary(res)
         json.dump(res,open("analysis.json","w"),indent=4)
 
-
-
+    messages = {}
     for env in teams:
         send_flag = True
         for portal_url in res:
@@ -1109,17 +1108,21 @@ if __name__ == "__main__":
                         section.text(section_text)
                         teams[env].addSection(section)
                 teams[env].color(mcolor="red")
+
         if send_flag:
             try:
                 # teams[env].printme()
                 teams[env].send()
-                message_file = open(env + "_message.json","w")
-                json.dump(teams[env].payload,message_file,indent=4)
-                message_file.close()
             except Exception as e:
+                messages[env] = teams[env].payload
                 print(e)
                 print("*** Could not send message to Teams")
                 pass
+    if len(messages) > 0:
+        message_file = open("messages.json", "w")
+        json.dump(messages, message_file, indent=4)
+        message_file.close()
+
     context = {"report_url":report_url,"jira_url":jira_url}
     template = open("index.template","r").read()
     html = Template(template).render(Context(context))

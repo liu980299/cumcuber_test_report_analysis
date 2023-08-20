@@ -324,6 +324,7 @@ if __name__ == "__main__":
                             for a_comment in item["comments"]:
                                 comments.append(a_comment)
                         scenario_item["comments"] = comments
+                        scenario_item["is_monitored"] = True
                 else:
                     if "is_monitored" in new_comment and new_comment["is_monitored"]:
                         scenario_item["is_monitored"] = True
