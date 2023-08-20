@@ -307,21 +307,32 @@ if __name__ == "__main__":
                         scenario_item["comments"] = [scenario_item["new_comment"]]
                     scenario_item["new_comment"] = None
                 if scenario in monitor_scenarios:
-                    history_item = {}
-                    for key in scenario_item:
-                        if not key == "history":
-                            history_item[key] = scenario_item[key]
-                    monitor_scenarios[scenario].append(history_item)
-                    scenario_item["history"] = monitor_scenarios[scenario]
-                    comments = []
-                    for item in monitor_scenarios[scenario]:
-                        for a_comment in item["comments"]:
-                            comments.append(a_comment)
-                    scenario_item["comments"] = comments
+                    if not new_comment["is_monitored"]:
+                        scenario_item["is_monitored"] = False
+                        if "history" in scenario_item:
+                            scenario_item.pop("history")
+                        monitor_scenarios.pop(scenario)
+                    else:
+                        history_item = {}
+                        for key in scenario_item:
+                            if not key == "history":
+                                history_item[key] = scenario_item[key]
+                        monitor_scenarios[scenario].append(history_item)
+                        scenario_item["history"] = monitor_scenarios[scenario]
+                        comments = []
+                        for item in monitor_scenarios[scenario]:
+                            for a_comment in item["comments"]:
+                                comments.append(a_comment)
+                        scenario_item["comments"] = comments
                 else:
                     if "is_monitored" in new_comment and new_comment["is_monitored"]:
                         scenario_item["is_monitored"] = True
+                        history_item = {}
+                        for key in scenario_item:
+                            if not key == "history":
+                                history_item[key] = scenario_item[key]
                         monitor_scenarios[scenario] = [scenario_item]
+                        scenario_item["history"] = history_item
             if "changed" in task and task["changed"]:
                 mention = {
                         "type": "mention",
