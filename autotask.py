@@ -236,7 +236,7 @@ if __name__ == "__main__":
                         issue = jira.create_issue(project=a_jira["project"], summary=a_jira["summary"],
                                                       description=a_jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation'],
                                                              fixVersions=[{"name":"Triage"}],customfield_12257=a_jira["steps"],
-                                                             reporter={"name": user_data["username"]},assignee={"name":user_data["username"]})
+                                                             assignee={"name":user_data["username"]})
                         print(issue)
                         a_jira["original_id"] = a_jira["id"]
                         a_jira["id"] = issue.id
