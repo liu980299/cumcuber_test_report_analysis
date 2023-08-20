@@ -233,7 +233,7 @@ if __name__ == "__main__":
                 version = ".".join(a_jira["version"].split(".")[:2])
                 if "updated" not in a_jira:
                     if "is_new" in a_jira and a_jira["is_new"]:
-                        issue = jira_server.create_issue(project=jira["project"], summary=jira["summary"],
+                        issue = jira.create_issue(project=jira["project"], summary=jira["summary"],
                                                       description=jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation'],
                                                              fixVersions=[{"name":"Triage"}],customfield_12257=jira["steps"],
                                                              reporter={"name": user_data["username"]},assignee={"name":user_data["username"]})
