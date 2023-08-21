@@ -44,6 +44,24 @@ message_payload={
     }
 ]
 }
+def write_scenarios_content(a_jira):
+    new_content = "<td>"
+    test_content = ""
+    a_jira["scenario_text"] = ""
+    for scenario in a_jira["scenarios"]:
+        test_content += "<a target=\"_blank\" href=\"" + scenario["url"] + "\">" + \
+                        scenario["name"] + "</a><br/>"
+        a_jira["scenario_text"] += scenario["name"] + "\n"
+
+    if len(a_jira["scenarios"]) > 5:
+        error_num = len(a_jira["scenarios"])
+        error_str = "Failed " + str(error_num) + " scenarios"
+        test_content = expand_macro.format(error_str=error_str, content=test_content)
+
+    new_content += test_content + "</td>"
+    return new_content
+
+
 if __name__ == "__main__":
     confluence = args.confluence
     server_url,job_name,username,password,message_job = args.jenkins.split("|")
@@ -186,20 +204,7 @@ if __name__ == "__main__":
                                     scenario_text = ""
                                     for header in headers:
                                         if header == "Test":
-                                            new_content = "<td>"
-                                            test_content = ""
-                                            for scenario in a_jira["scenarios"]:
-                                                test_content += "<a target=\"_blank\" href=\"" + scenario["url"] + "\">" + \
-                                                               scenario["name"] + "</a><br/>"
-                                                scenario_text += scenario["name"] + "\n"
-
-                                            if len(a_jira["scenarios"]) > 5:
-                                                error_num = len(a_jira["scenarios"])
-                                                error_str = "Failed " + str(error_num) + " scenarios"
-                                                test_content = expand_macro.format(error_str=error_str,content=test_content)
-
-                                            new_content += test_content + "</td>"
-                                            new_tr += new_content
+                                            new_tr += write_scenarios_content(a_jira)
                                         else:
                                             new_tr += contents[header]
                                     new_tr += "</tr>"
@@ -257,11 +262,7 @@ if __name__ == "__main__":
                         elif header == "Release":
                             new_tr += "<td>" + templates[header].format(version) + "</td>"
                         elif header == "Test":
-                            new_tr += "<td>"
-                            for scenario in a_jira["scenarios"]:
-                                new_tr += "<a target=\"_blank\" href=\"" + scenario["url"] + "\">" + scenario[
-                                    "name"] + "</a><br/>"
-                            new_tr += "</td>"
+                            new_tr += write_scenarios_content(a_jira)
                         elif header == "Fixed":
                             new_tr += "<td></br></td>"
                         elif header =="Feature File":
