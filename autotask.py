@@ -61,6 +61,22 @@ def write_scenarios_content(a_jira):
     new_content += test_content + "</td>"
     return new_content
 
+def insert_monitor_scenario(tasks,scenario):
+    versions = scenario["version"].split(".")
+    owner = scenario["owner"]
+    env = scenario["env"]
+    version = versions[0] + "." + versions[1]
+    if version in tasks:
+        task_list = tasks[version]
+        new_task = None
+        for task in task_list:
+            if task["owner"] == owner:
+                new_task = task["owner"]
+                break
+        if not new_task:
+            new_task = {"owner":owner,"env":env,"scenarios":{},"scenario_list":[]}
+            task_list.append(new_task)
+        new_task["scenarios"][scenario["name"]] = scenario
 
 if __name__ == "__main__":
     confluence = args.confluence
@@ -283,6 +299,7 @@ if __name__ == "__main__":
     # test_file.close()
     # print(new_content)
     res["jiras"] = all_jiras
+    monitor_scenario_list = []
     for env in data["tasks"]:
         tasks = data["tasks"][env]
         for task in tasks:
@@ -294,6 +311,7 @@ if __name__ == "__main__":
                     new_jiras.append(jira)
             for scenario in task["scenarios"]:
                 scenario_item = task["scenarios"][scenario]
+                scenario_item["name"] = scenario
                 new_comment = {}
                 if scenario_item["changed"]:
                     teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
@@ -313,6 +331,7 @@ if __name__ == "__main__":
                             scenario_item.pop("history")
                         monitor_scenarios.pop(scenario)
                     else:
+                        monitor_scenario_list.append[scenario]
                         history_item = {}
                         for key in scenario_item:
                             if not key == "history":
@@ -324,16 +343,21 @@ if __name__ == "__main__":
                             for a_comment in item["comments"]:
                                 comments.append(a_comment)
                         scenario_item["comments"] = comments
+                        scenario_item["owner"] = task["owner"]
+                        scenario_item["env"] = task["env"]
                         scenario_item["is_monitored"] = True
                 else:
                     if "is_monitored" in new_comment and new_comment["is_monitored"]:
                         scenario_item["is_monitored"] = True
+                        monitor_scenario_list.append[scenario]
                         history_item = {}
                         for key in scenario_item:
                             if not key == "history":
                                 history_item[key] = scenario_item[key]
                         monitor_scenarios[scenario] = [scenario_item]
                         scenario_item["history"] = history_item
+                        scenario_item["owner"] = task["owner"]
+                        scenario_item["env"] = task["env"]
             if "changed" in task and task["changed"]:
                 mention = {
                         "type": "mention",
@@ -346,6 +370,11 @@ if __name__ == "__main__":
                 teams[task["env"]].payload["attachments"][0]["content"]["body"].append(teams_message)
                 teams[task["env"]].payload["attachments"][0]["content"]["msteams"]["entities"].append(mention)
             task["jiras"] = new_jiras
+    for scenario in monitor_scenarios:
+        if scenario not in monitor_scenario_list:
+            scenario_item = monitor_scenarios[scenario][-1]
+            insert_monitor_scenario(data["tasks"],scenario_item)
+
     res["tasks"] = data["tasks"]
     res["monitor_scenarios"] = monitor_scenarios
     new_content = str(soup)
