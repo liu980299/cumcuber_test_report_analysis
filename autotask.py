@@ -238,7 +238,7 @@ if __name__ == "__main__":
                                                              assignee={"name":user_data["email"]})
                         print(issue)
                         a_jira["original_id"] = a_jira["id"]
-                        a_jira["id"] = issue.id
+                        a_jira["id"] = issue.key
                     else:
                         issue = jira.issue(a_jira["id"])
                     a_jira["summary"] = issue.get_field("summary")
