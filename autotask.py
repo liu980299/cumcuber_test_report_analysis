@@ -339,9 +339,9 @@ if __name__ == "__main__":
                         monitor_scenarios[scenario].append(history_item)
                         scenario_item["history"] = monitor_scenarios[scenario]
                         comments = []
-                        for item in monitor_scenarios[scenario]:
-                            for a_comment in item["comments"]:
-                                comments.append(a_comment)
+                        last_item = monitor_scenarios[scenario][-1]
+                        for a_comment in last_item["comments"]:
+                            comments.append(a_comment)
                         scenario_item["comments"] = comments
                         scenario_item["owner"] = task["owner"]
                         scenario_item["env"] = task["env"]
