@@ -1,3 +1,5 @@
+import time
+
 from bs4 import BeautifulSoup
 from atlassian import Confluence
 import datetime,requests
@@ -78,6 +80,24 @@ def insert_monitor_scenario(tasks,scenario):
             task_list.append(new_task)
         new_task["scenarios"][scenario["name"]] = scenario
 
+def get_user_details(confluence_args,userkey,team_contacts):
+    server = confluence_args["server"]
+    res = {}
+    try:
+        user = server.get_user_details_by_userkey(userkey)
+        res["user"] = user["displayName"]
+        if user["displayName"] not in team_contacts:
+            team_contacts[user["displayName"]] = ldap_user + "@" + domain
+        res["email"] = user["username"]
+        res["key"] = owner["QA"]
+        res["features"] = [owner["Feature File"].lower()]
+        return res
+    except Exception as e:
+        time.sleep(2)
+        print(e)
+        confluence_args["server"] = Confluence(confluence_args["server_url"], confluence_args["username"], token=confluence_args["token"], verify_ssl=False)
+        return get_user_details(confluence_args,userkey,team_contacts)
+
 if __name__ == "__main__":
     confluence = args.confluence
     server_url,job_name,username,password,message_job = args.jenkins.split("|")
@@ -130,6 +150,7 @@ if __name__ == "__main__":
     all_jiras = []
     tables = soup.find_all("table")
     macros = {}
+    confluence_args = {"server":confluence,"server_url":server_url,"username":username,"token":token}
     for table in tables:
         ths = table.find_all("th")
         headers = []
@@ -160,14 +181,7 @@ if __name__ == "__main__":
                     if ldap_user not in owner_list:
                         owner_dict[owner["QA"]] = ldap_user
                         print(owner)
-                        user = confluence.get_user_details_by_userkey(owner["QA"])
-                        owner_list[ldap_user] = {}
-                        owner_list[ldap_user]["user"] = user["displayName"]
-                        if user["displayName"] not in team_contacts:
-                            team_contacts[user["displayName"]] = ldap_user + "@" +domain
-                        owner_list[ldap_user]["email"] = user["username"]
-                        owner_list[ldap_user]["key"] = owner["QA"]
-                        owner_list[ldap_user]["features"] = [owner["Feature File"].lower()]
+                        owner_list[ldap_user] = get_user_details(confluence_args,owner["QA"],team_contacts)
                     else:
                         if "QA" in owner:
                             owner_list[ldap_user]["features"].append(owner["Feature File"].lower())
