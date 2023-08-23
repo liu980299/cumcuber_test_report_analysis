@@ -386,6 +386,7 @@ def get_dailyresult(confluence):
     if jira_url.find("https") < 0:
         jira_server = jira_url.rsplit("/")[0]
         jira_server = "https://" + jira_server
+        jira_url = "https://" + jira_url
     else:
         jira_server = "https://" + jira_url[8:].split("/")[0]
     jira = JIRA(server=jira_server, token_auth=jira_auth)
