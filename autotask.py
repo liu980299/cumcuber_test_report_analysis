@@ -391,7 +391,7 @@ if __name__ == "__main__":
                                 scenario_item["owner"] = task["owner"]
                                 scenario_item["env"] = task["env"]
 
-            if "changed" in task and task["changed"]:
+            if "changed" in task and task["changed"] and not task["owner"] == "Unassigned":
                 mention = {
                         "type": "mention",
                         "text": "<at>" + task["owner"] + "</at>",
