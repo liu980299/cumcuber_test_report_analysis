@@ -75,8 +75,7 @@ if __name__ == "__main__":
                 if last_build > int(build):
                     message_json_url = job_info["lastSuccessfulBuild"]["url"] + "/" + job_reports[job_name] + "/messages.json"
                     if get_messages(message_json_url):
-                        if build_info["number"] > max_build:
-                            max_build = last_build
+                        max_build = last_build
             res[job_name] = max_build
         else:
             last_build = job_info["lastSuccessfulBuild"]["number"]
