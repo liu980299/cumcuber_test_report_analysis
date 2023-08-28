@@ -93,17 +93,18 @@ def analysis_performance(performances,job_info,performance_result, lastBuild):
     return performance_result
 
 
-def merge_summary(res):
+def merge_summary(res,summary_jobs):
     for url in res:
         if url not in ["configure"]:
             env_res = res[url]
             cursor = {}
             top = {}
             for job_name in env_res["job_summary"]:
-                cursor[job_name] = 0
-                for summary in env_res["job_summary"][job_name]:
-                    if job_name not in top or ("Scenarios" in summary and top[job_name] < summary["Scenarios"]):
-                        top[job_name] = summary["Scenarios"]
+                if job_name in summary_jobs:
+                    cursor[job_name] = 0
+                    for summary in env_res["job_summary"][job_name]:
+                        if job_name not in top or ("Scenarios" in summary and top[job_name] < summary["Scenarios"]):
+                            top[job_name] = summary["Scenarios"]
             start_time = ""
             while(True):
                 tag = True
@@ -807,15 +808,22 @@ if __name__ == "__main__":
     urls={}
     console_logs={}
     console_servers={}
+    job_names = [job_name.strip("#") for job_name in args.jobs.split(",")]
+    summary_job_names = [job_name.strip("#") for job_name in args.jobs.split(",") if job_name.find("#") >= 0]
+    summary_jobs =[]
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
         jobs=[]
-        job_names = args.jobs.split(",")
+
         for job in all_jobs:
             for job_name in job_names:
                 if job["name"].find(job_name) == 0:
                     jobs.append(job)
+            for job_name in summary_job_names:
+                if job["name"].find(job_name) == 0 and job["name"] not in summary_jobs:
+                    summary_jobs.append(job["name"])
+
         for job in jobs:
             job_info = server.get_job_info(job["name"])
             lastbuilds[job["name"]] = job_info["lastBuild"]["number"]
@@ -1045,7 +1053,7 @@ if __name__ == "__main__":
 
     write_container(res)
     if len(res) > 0:
-        merge_summary(res)
+        merge_summary(res,summary_jobs)
         json.dump(res,open("analysis.json","w"),indent=4)
 
     messages = {}
