@@ -112,7 +112,7 @@ def merge_summary(res,summary_jobs):
 
                 for job_name in cursor:
                     summary_list = env_res["job_summary"][job_name]
-                    if cursor[job_name] >= len(summary_list) - 1:
+                    if cursor[job_name] > len(summary_list) - 1:
                         oversize = True
                         break
                 if oversize:
@@ -966,7 +966,8 @@ if __name__ == "__main__":
                     features_res = env_res["jobs"][job_name]
                     for scenario in build_res["scenarioes"]:
                         scenario["job_name"] = job_name
-                        timeline_analysis(scenario,timeline_res,context_flags)
+                        if job_name in summary_jobs:
+                            timeline_analysis(scenario,timeline_res,context_flags)
                         if scenario["result"] == "failed":
                             if len(steps_dict) > 0:
                                 java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
