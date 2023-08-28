@@ -153,11 +153,11 @@ if __name__ == "__main__":
         for job_name in job_list.split(","):
             report_dict[job_name] = report_name
     runs = int(args.runs)
+    job_names = [job_name.strip("#") for job_name in args.jobs.split(",")]
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
         jobs=[]
-        job_names = args.jobs.split(",")
         for job in all_jobs:
             for job_name in job_names:
                 if job["name"].find(job_name) == 0 and job["name"].lower().find("temp") < 0:
