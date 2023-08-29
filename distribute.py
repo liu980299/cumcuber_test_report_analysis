@@ -731,7 +731,7 @@ def get_job_consoles(server,job_url,console_logs):
         soup = BeautifulSoup(response.text, "html.parser")
         link_lists = soup.find_all("a")
         for link in link_lists:
-            if link.text.find("console-container") >=0:
+            if link.text.find("console-") >=0:
                 log_url = link.attrs["href"]
                 log_response = server.jenkins_request(requests.Request('GET',job_url+"artifact/" + log_url))
                 console_logs[link.text.split(".")[0].split("-")[1]] = account_analysis(log_response.text)
