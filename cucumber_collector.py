@@ -10,13 +10,13 @@ from bs4 import BeautifulSoup
 import argparse
 
 
-def getScenario(case_result, lastCompletedBuild = False):
+def getScenario(case_result, lastCompletedBuild = False,daily_job=True):
     try:
         response = server.jenkins_request(requests.Request('GET',case_result["scenario_url"]))
     except requests.exceptions.ConnectionError as e:
         sleep(2)
         print("Connection error ...")
-        getScenario(case_result)
+        getScenario(case_result,daily_job)
         return
     report_path = case_result["scenario_url"].rsplit("/",3)[0]
     soup = BeautifulSoup(response.text,"html.parser")
@@ -65,9 +65,13 @@ def getScenario(case_result, lastCompletedBuild = False):
                         elif check == "failed" and lastCompletedBuild:
                             if "tags" in case_result:
                                 for tag in case_result["tags"]:
-                                    if tag.find("container") >= 0:
+                                    if tag.find("container") >= 0 or not daily_job:
                                         tag = tag.strip("@")
-                                        log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-" + tag + ".log"
+                                        if daily_job:
+                                            log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-container" + tag + ".log"
+                                        else:
+                                            log_url = "/".join(case_result["scenario_url"].split("/")[
+                                                               :-4]) + "/artifact/console-" + tag + ".log"
                                         get_result = False
                                         while not get_result:
                                             try:
@@ -154,6 +158,8 @@ if __name__ == "__main__":
             report_dict[job_name] = report_name
     runs = int(args.runs)
     job_names = [job_name.strip("#") for job_name in args.jobs.split(",")]
+    non_daily_job_names = [job_name.strip("#") for job_name in args.jobs.split(",") if job_name.find("#") < 0]
+    non_daily_jobs = []
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
         all_jobs = server.get_jobs()
@@ -162,6 +168,8 @@ if __name__ == "__main__":
             for job_name in job_names:
                 if job["name"].find(job_name) == 0 and job["name"].lower().find("temp") < 0:
                     jobs.append(job)
+                    if job_name in non_daily_job_names:
+                        non_daily_jobs.append(job["name"])
         if not os.path.exists(args.output) :
             os.mkdir(args.output)
 
@@ -252,7 +260,7 @@ if __name__ == "__main__":
                                                         case_result["scenario"] = (" ").join([line for line in link.strings])
                                     if "scenario_url" in case_result:
                                         case_result["job"] = job["name"]
-                                        getScenario(case_result, lastCompletedBuild)
+                                        getScenario(case_result, lastCompletedBuild,job["name"] not in non_daily_jobs)
                                         build_res["scenarioes"].append(case_result)
 
                     res[str(build["number"])] = build_res
