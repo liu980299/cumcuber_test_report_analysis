@@ -67,11 +67,7 @@ def getScenario(case_result, lastCompletedBuild = False,daily_job=True):
                                 for tag in case_result["tags"]:
                                     if tag.find("container") >= 0 or not daily_job:
                                         tag = tag.strip("@")
-                                        if daily_job:
-                                            log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-container" + tag + ".log"
-                                        else:
-                                            log_url = "/".join(case_result["scenario_url"].split("/")[
-                                                               :-4]) + "/artifact/console-" + tag + ".log"
+                                        log_url = "/".join(case_result["scenario_url"].split("/")[:-4]) +"/artifact/console-" + tag + ".log"
                                         get_result = False
                                         while not get_result:
                                             try:
