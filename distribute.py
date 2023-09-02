@@ -248,7 +248,7 @@ def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_r
     if len(contexts) > 0:
         page = contexts[-1].lower()
         for test in confluence_res["tests"]:
-            if "conditions" in test and scenario_res["data"]["version"] >= test["Release"]:
+            if "conditions" in test and scenario_res["data"]["version"] >= test["Found"]:
                 for condition in test["conditions"]:
                     if "pages" in condition and page in condition["pages"]:
                         if "steps" in condition:
@@ -438,7 +438,7 @@ def get_dailyresult(confluence):
                         if "QA" in owner:
                             owner_list[ldap_user]["features"].append(owner["Feature File"].lower())
             res["owner_list"] = owner_list
-        if "Release" in headers:
+        if "Found" in headers:
             trs = table.find_all("tr")
             for tr in trs:
                 tds = tr.find_all("td")
@@ -464,10 +464,10 @@ def get_dailyresult(confluence):
                 if len(row) > 0:
                     record = dict(zip(headers,row))
                     if record["StatusGreenPassRedFail"].lower() == "redfail":
-                        if "Release" in record:
-                            m = re.search("(\d+\.\d+)", record["Release"])
+                        if "Found" in record:
+                            m = re.search("(\d+\.\d+)", record["Found"])
                             if m:
-                                record["Release"] = m.group(1)
+                                record["Found"] = m.group(1)
                         jira_list = []
                         if 'Reason' in tags:
                             macros = tags['Reason'].find_all('ac:structured-macro')
@@ -539,7 +539,7 @@ def get_dailyresult(confluence):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)
                                 creator = issue.get_field("creator")
-                                res["jiras"][jira_id]={"version":record["Release"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator),"scenarios":record["scenarios"]}
+                                res["jiras"][jira_id]={"version":record["Found"],"summary":issue.get_field("summary"),"id":jira_id,"scenario_text":record["Test"],"creator":str(creator),"scenarios":record["scenarios"]}
                         res["tests"].append(record)
     res["jira_url"] = jira_url
     res["jira_user"] = username
@@ -1003,7 +1003,7 @@ if __name__ == "__main__":
                                 for test in confluence_res["tests"]:
                                     # test_scenario = test["Scenario"].lower().replace(" ","")
                                     test_scenarios = test["scenarios"]
-                                    if scenario["scenario"] in test_scenarios and env_res["version"] >= test["Release"].strip():
+                                    if scenario["scenario"] in test_scenarios and env_res["version"] >= test["Found"].strip():
                                         scenario_item["JIRA"] = test["JIRA"]
                                         if(len(test["Owner"].strip()) > 0):
                                             scenario_item["assigned"] = test["Owner"]

@@ -132,6 +132,10 @@ if __name__ == "__main__":
     jiras = []
     if "jiras" in data:
         jiras = data["jiras"]
+    release = ""
+    for version in data["tasks"]:
+        if version > release:
+            release = version
     server_url, page_id, username, token,server_id = confluence.split("|")
     templates = json.load(open("template.json","r"))
     confluence = Confluence(server_url, username, token=token, verify_ssl=False)
@@ -206,10 +210,10 @@ if __name__ == "__main__":
                     record = dict(zip(headers,row))
                     if record["StatusGreenPassRedFail"].lower() == "redfail" and record['Reason'].find('JIRA') >= 0:
                         in_updates = False
-                        if "Release" in record:
+                        if "Found" in record:
                             m = re.search("(\d+\.\d+)", record["Release"])
                             if m:
-                                record["Release"] = m.group(1)
+                                record["Found"] = m.group(1)
                         jira_list = []
                         if 'Reason' in tags:
                             macros = tags['Reason'].find_all('ac:structured-macro')
@@ -258,7 +262,7 @@ if __name__ == "__main__":
                                 new_jira["summary"] = issue.get_field("summary")
                                 new_jira["creator"] = str(issue.get_field("creator"))
                                 new_jira["scenarios"] = record["scenarios"]
-                                new_jira["version"] = record["Release"]
+                                new_jira["version"] = record["Found"]
                                 new_jira["scenario_text"] = record["Test"]
                                 all_jira_ids = [ ticket["id"] for ticket in all_jiras]
                                 if not new_jira["id"] in all_jira_ids:
@@ -290,6 +294,8 @@ if __name__ == "__main__":
                         elif header == "Owner":
                             new_tr += "<td>" + templates[header].format(user_key) + "</td>"
                         elif header == "Release":
+                            new_tr += "<td>" + templates[header].format(release) + "</td>"
+                        elif header == "Found":
                             new_tr += "<td>" + templates[header].format(version) + "</td>"
                         elif header == "Test":
                             new_tr += write_scenarios_content(a_jira)
