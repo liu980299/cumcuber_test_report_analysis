@@ -212,7 +212,7 @@ if __name__ == "__main__":
                     if record["StatusGreenPassRedFail"].lower() == "redfail" and record['Reason'].find('JIRA') >= 0:
                         in_updates = False
                         if "Found" in record:
-                            m = re.search("(\d+\.\d+)", record["Release"])
+                            m = re.search("(\d+\.\d+)", record["Found"])
                             if m:
                                 record["Found"] = m.group(1)
                         jira_list = []
