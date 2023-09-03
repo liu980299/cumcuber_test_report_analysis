@@ -237,10 +237,13 @@ if __name__ == "__main__":
                                 else:
                                     new_tr = "<tr>"
                                     scenario_text = ""
-                                    if "set_pass" in a_jira and a_jira["set_pass"]:
+                                    if "pass_test" in a_jira and a_jira["pass_test"]:
                                         for header in headers:
                                             if header == "StatusGreenPassRedFail":
-                                                new_tr += pass_macro
+                                                new_tr += "<td>" + pass_macro + "</td>"
+                                            elif header == "Fixed":
+                                                new_tr += "<td><div class=\"content-wrapper\"><p><time datetime=\"{}\"></time>\u00a0</p></div>".format(
+                                                    datetime.datetime.now().strftime("%Y-%m-%d")) + "</td>"
                                             else:
                                                 new_tr += contents[header]
                                     else:
@@ -259,7 +262,7 @@ if __name__ == "__main__":
                                 a_jira["updated"] = True
                                 in_updates = True
                                 all_jira_ids = [ ticket["id"] for ticket in all_jiras]
-                                if not a_jira["id"] in all_jira_ids and ("set_pass" not in a_jira or not a_jira["set_pass"]):
+                                if not a_jira["id"] in all_jira_ids and ("pass_test" not in a_jira or not a_jira["pass_test"]):
                                     all_jiras.append(a_jira)
                                 break
                         if not in_updates:
