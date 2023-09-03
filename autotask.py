@@ -18,6 +18,7 @@ parser.add_argument("--domain", help="teams domain", required=True)
 parser.add_argument("--jenkins", help="job url", required=True)
 args = parser.parse_args()
 status_macro = """<ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">Red</ac:parameter><ac:parameter ac:name="title">FAIL</ac:parameter></ac:structured-macro>"""
+pass_macro = """<ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">Green</ac:parameter><ac:parameter ac:name="title">PASS</ac:parameter></ac:structured-macro>"""
 jira_macro = """<ac:structured-macro ac:name="jira" ac:schema-version="1" ><ac:parameter ac:name="server">JIRA</ac:parameter><ac:parameter ac:name="serverId">{server}</ac:parameter><ac:parameter ac:name="key">{id}</ac:parameter></ac:structured-macro>"""
 expand_macro = """<ac:structured-macro ac:name="expand" ac:schema-version="1">
     <ac:parameter ac:name="title">{error_str}</ac:parameter>
@@ -231,16 +232,23 @@ if __name__ == "__main__":
                                 record['scenarios'].append({"url":link.get('href'),"name":link.text})
                         for a_jira in jiras:
                             if jira_str.lower().find(a_jira["id"].lower()) >= 0:
-                                if (len(a_jira["scenarios"]) == 0):
+                                if ("scenarios" in a_jira and len(a_jira["scenarios"]) == 0):
                                     tr.decompose()
                                 else:
                                     new_tr = "<tr>"
                                     scenario_text = ""
-                                    for header in headers:
-                                        if header == "Test":
-                                            new_tr += write_scenarios_content(a_jira)
-                                        else:
-                                            new_tr += contents[header]
+                                    if "set_pass" in a_jira and a_jira["set_pass"]:
+                                        for header in headers:
+                                            if header == "StatusGreenPassRedFail":
+                                                new_tr += pass_macro
+                                            else:
+                                                new_tr += contents[header]
+                                    else:
+                                        for header in headers:
+                                            if header == "Test":
+                                                new_tr += write_scenarios_content(a_jira)
+                                            else:
+                                                new_tr += contents[header]
                                     new_tr += "</tr>"
                                     tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
                                     tr.replace_with(tr_new)
@@ -251,7 +259,7 @@ if __name__ == "__main__":
                                 a_jira["updated"] = True
                                 in_updates = True
                                 all_jira_ids = [ ticket["id"] for ticket in all_jiras]
-                                if not a_jira["id"] in all_jira_ids:
+                                if not a_jira["id"] in all_jira_ids and ("set_pass" not in a_jira or not a_jira["set_pass"]):
                                     all_jiras.append(a_jira)
                                 break
                         if not in_updates:
