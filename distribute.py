@@ -943,7 +943,8 @@ if __name__ == "__main__":
                     env_res = res[build_res["PORTAL URL"]]
                     context_res= env_res["context"]
                     timeline_res = env_res["timeline"]
-                    env_res["version"] = build_res["PORTAL VERSION"]
+                    if "version" not in env_res or env_res["version"] < build_res["PORTAL VERSION"]:
+                        env_res["version"] = build_res["PORTAL VERSION"]
                     if "jiras" not in env_res and confluence_res:
                         env_res["jiras"] = []
                         for jira_issue in confluence_res["jiras"]:
