@@ -381,7 +381,7 @@ if __name__ == "__main__":
                     else:
                         if "is_monitored" in new_comment and new_comment["is_monitored"]:
                             scenario_item["is_monitored"] = True
-                            monitor_scenario_list.append[scenario]
+                            monitor_scenario_list.append(scenario)
                             history_item = {}
                             for key in scenario_item:
                                 if not key == "history":
@@ -398,7 +398,7 @@ if __name__ == "__main__":
                             monitor_scenarios.pop(scenario)
                         elif scenario_item["is_monitored"]:
                             if scenario not in monitor_scenarios:
-                                monitor_scenario_list.append[scenario]
+                                monitor_scenario_list.append(scenario)
                                 history_item = {}
                                 for key in scenario_item:
                                     if not key == "history":
