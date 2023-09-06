@@ -387,7 +387,7 @@ if __name__ == "__main__":
                                 if not key == "history":
                                     history_item[key] = scenario_item[key]
                             monitor_scenarios[scenario] = [scenario_item]
-                            scenario_item["history"] = history_item
+                            scenario_item["history"] = [history_item]
                             scenario_item["owner"] = task["owner"]
                             scenario_item["env"] = task["env"]
                 else:
