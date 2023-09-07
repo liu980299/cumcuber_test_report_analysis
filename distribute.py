@@ -1129,10 +1129,10 @@ if __name__ == "__main__":
                 print(e)
                 print("*** Could not send message to Teams")
                 pass
-    if len(messages) > 0:
-        message_file = open("messages.json", "w")
-        json.dump(messages, message_file, indent=4)
-        message_file.close()
+
+    message_file = open("messages.json", "w")
+    json.dump(messages, message_file, indent=4)
+    message_file.close()
 
     context = {"report_url":report_url,"jira_url":jira_url}
     template = open("index.template","r").read()
