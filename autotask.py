@@ -74,7 +74,7 @@ def insert_monitor_scenario(tasks,scenario):
         new_task = None
         for task in task_list:
             if task["owner"] == owner:
-                new_task = task["owner"]
+                new_task = task
                 break
         if not new_task:
             new_task = {"owner":owner,"env":env,"scenarios":{},"scenario_list":[]}
