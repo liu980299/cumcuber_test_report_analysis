@@ -65,21 +65,22 @@ def write_scenarios_content(a_jira):
     return new_content
 
 def insert_monitor_scenario(tasks,scenario):
-    versions = scenario["version"].split(".")
-    owner = scenario["owner"]
-    env = scenario["env"]
-    version = versions[0] + "." + versions[1]
-    if version in tasks:
-        task_list = tasks[version]
-        new_task = None
-        for task in task_list:
-            if task["owner"] == owner:
-                new_task = task
-                break
-        if not new_task:
-            new_task = {"owner":owner,"env":env,"scenarios":{},"scenario_list":[]}
-            task_list.append(new_task)
-        new_task["scenarios"][scenario["name"]] = scenario
+    if "owner" in scenario:
+        versions = scenario["version"].split(".")
+        owner = scenario["owner"]
+        env = scenario["env"]
+        version = versions[0] + "." + versions[1]
+        if version in tasks:
+            task_list = tasks[version]
+            new_task = None
+            for task in task_list:
+                if task["owner"] == owner:
+                    new_task = task
+                    break
+            if not new_task:
+                new_task = {"owner":owner,"env":env,"scenarios":{},"scenario_list":[]}
+                task_list.append(new_task)
+            new_task["scenarios"][scenario["name"]] = scenario
 
 def get_user_details(confluence_args,userkey,team_contacts):
     server = confluence_args["server"]
