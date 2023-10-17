@@ -735,7 +735,7 @@ def get_job_consoles(server,job_url,console_logs):
                 log_url = link.attrs["href"]
                 log_response = server.jenkins_request(requests.Request('GET',job_url+"artifact/" + log_url))
                 console_logs[link.text.split(".")[0].split("-")[1]] = account_analysis(log_response.text)
-    except ConnectionError:
+    except requests.exceptions.ConnectionError:
         time.sleep(5)
         get_job_consoles(server,job_url,console_logs)
 
@@ -940,7 +940,9 @@ if __name__ == "__main__":
                         res[build_res["PORTAL URL"]]["context"] = {}
                         res[build_res["PORTAL URL"]]["timeline"] = {}
                         res[build_res["PORTAL URL"]]["jobs"][job_name]={}
+                        res[build_res["PORTAL URL"]]["versions"] = {}
                     env_res = res[build_res["PORTAL URL"]]
+                    env_res["versions"][job_name] = build_res["PORTAL VERSION"]
                     context_res= env_res["context"]
                     timeline_res = env_res["timeline"]
                     if "version" not in env_res or env_res["version"] < build_res["PORTAL VERSION"]:
@@ -1097,7 +1099,10 @@ if __name__ == "__main__":
                     if "_type" not in job_data or not job_data["_type"] == "report":
                         section = pymsteams.cardsection()
                         if job in urls:
-                            section.title("# **JOB : [" + job +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
+                            job_name = job
+                            if job in res[portal_url]["versions"] and not res[portal_url]["versions"][job] == res[portal_url]["version"]:
+                                job_name = job + "(" + res[portal_url]["versions"][job] + ")"
+                            section.title("# **JOB : [" + job_name +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
                         else:
                             section.title("# **JOB : " + job +"**")
                         section_text = "\n\n<ul>"
@@ -1112,7 +1117,9 @@ if __name__ == "__main__":
                                 for scenario_name in scenario_list:
                                     if "JIRA" in scenario_list[scenario_name]:
                                         checked_num +=1
-                                section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(checked_num) + "/" +  str(features[feature]["failed"]) + ")</a></li>"
+                                # section_text += "<li><a href='" + features[feature]["url"] + "'>" + feature+ " (" + str(checked_num) + "/" +  str(features[feature]["failed"]) + ")</a></li>"
+                                section_text += "<li>" + feature + " (" + str(checked_num) + "/" + str(
+                                    features[feature]["failed"]) + ")</li>"
                         else:
                             section_text += "<strong style='color:green;'>  Congratulation! No feature failed in this job! </strong>"
                         section_text +="</ul>"
