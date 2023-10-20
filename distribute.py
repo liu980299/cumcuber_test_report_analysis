@@ -379,6 +379,8 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     previous_step = ""
     if "previous_step" in res:
         previous_step = res["previous_step"]
+    if not "failed_step" in res:
+        res["failed_step"] = None
     return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step,"feature_file":feature,"scenario_url":res["url"]}
 
 def get_dailyresult(confluence):
