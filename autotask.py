@@ -156,6 +156,7 @@ if __name__ == "__main__":
     all_jiras = []
     tables = soup.find_all("table")
     macros = {}
+    removed_jiras = []
     confluence_args = {"server":confluence,"server_url":server_url,"username":username,"token":token}
     for table in tables:
         ths = table.find_all("th")
@@ -235,6 +236,7 @@ if __name__ == "__main__":
                             if jira_str.lower().find(a_jira["id"].lower()) >= 0:
                                 if ("scenarios" in a_jira and len(a_jira["scenarios"]) == 0):
                                     tr.decompose()
+                                    removed_jiras.append(a_jira)
                                 else:
                                     new_tr = "<tr>"
                                     scenario_text = ""
@@ -257,14 +259,14 @@ if __name__ == "__main__":
                                     tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
                                     tr.replace_with(tr_new)
                                     a_jira["scenario_text"] = scenario_text
-                                issue=jira.issue(a_jira["id"])
-                                a_jira["summary"] = issue.get_field("summary")
-                                a_jira["creator"] = str(issue.get_field("creator"))
-                                a_jira["updated"] = True
-                                in_updates = True
-                                all_jira_ids = [ ticket["id"] for ticket in all_jiras]
-                                if not a_jira["id"] in all_jira_ids and ("pass_test" not in a_jira or not a_jira["pass_test"]):
-                                    all_jiras.append(a_jira)
+                                    issue=jira.issue(a_jira["id"])
+                                    a_jira["summary"] = issue.get_field("summary")
+                                    a_jira["creator"] = str(issue.get_field("creator"))
+                                    a_jira["updated"] = True
+                                    in_updates = True
+                                    all_jira_ids = [ ticket["id"] for ticket in all_jiras]
+                                    if not a_jira["id"] in all_jira_ids and ("pass_test" not in a_jira or not a_jira["pass_test"]):
+                                        all_jiras.append(a_jira)
                                 break
                         if not in_updates:
                             for jira_id in jira_list:
