@@ -262,11 +262,11 @@ if __name__ == "__main__":
                                     issue=jira.issue(a_jira["id"])
                                     a_jira["summary"] = issue.get_field("summary")
                                     a_jira["creator"] = str(issue.get_field("creator"))
-                                    a_jira["updated"] = True
-                                    in_updates = True
                                     all_jira_ids = [ ticket["id"] for ticket in all_jiras]
                                     if not a_jira["id"] in all_jira_ids and ("pass_test" not in a_jira or not a_jira["pass_test"]):
                                         all_jiras.append(a_jira)
+                                a_jira["updated"] = True
+                                in_updates = True
                                 break
                         if not in_updates:
                             for jira_id in jira_list:
