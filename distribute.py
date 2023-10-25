@@ -1009,10 +1009,13 @@ if __name__ == "__main__":
                                     # test_scenario = test["Scenario"].lower().replace(" ","")
                                     test_scenarios = test["scenarios"]
                                     if scenario["scenario"] in test_scenarios and env_res["version"] >= test["Found"].strip():
-                                        scenario_item["JIRA"] = test["JIRA"]
+                                        if "JIRA" in scenario_item:
+                                            scenario_item["JIRA"] += "," + test["JIRA"]
+                                        else:
+                                            scenario_item["JIRA"] = test["JIRA"]
                                         if(len(test["Owner"].strip()) > 0):
                                             scenario_item["assigned"] = test["Owner"]
-                                        break
+
                                 for owner in confluence_res["owner_list"]:
                                     if scenario_item["feature_file"].lower() in confluence_res["owner_list"][owner]["features"]:
                                         scenario_item["owner"] = owner
