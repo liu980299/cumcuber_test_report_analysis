@@ -16,6 +16,7 @@ from django.template import Template, Context
 from getserverlog import ServerLog
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--containers",help="container number",required=True)
 parser.add_argument("--username",help="username",required=True)
 parser.add_argument("--passwords",help="passowrd",required=True)
 parser.add_argument("--servers",help="Jenkins Server",required=True)
@@ -779,6 +780,7 @@ def merge_result(timeline_res,console_logs):
 if __name__ == "__main__":
     servers = args.servers.split(",")
     passwords = args.passwords.split(",")
+    containers = int(args.containers)
     confluence_res = None
     jira_url = ""
     jira_cfgs = {}
@@ -1076,9 +1078,16 @@ if __name__ == "__main__":
                     if not job_builds["workable"] == job_builds["latest"] :
                         send_flag = True
                         break
+                container_txt = " with "
+                if len(env_res["timeline"]) == containers:
+                    container_txt += str(containers) + " containers"
+                else:
+                    container_txt += "<strong style='color:red;'>wrong containers number " + str(len(env_res["timeline"])) + ", please check!<strong>"
+
                 teams[env].title("Failed Scenarios Against Feature Distribution")
+
                 team_text = "**Total : " + str(env_res["Total"]) + " <strong style='color:red;'>Failed : " + str(env_res["failed"]) + "</strong>** Version : " +  env_res[
-                                        "version"] + " Portal : " + portal_url + "\n\n<H2>Please check auto test results on Workspace:</H2><a href='" +report_url +"'>" + report_url+ "</a>"
+                                        "version"] + container_txt + " Portal : " + portal_url + "\n\n<H2>Please check auto test results on Workspace:</H2><a href='" +report_url +"'>" + report_url+ "</a>"
                 teams[env].text(team_text)
                 teams[env].addLinkButton("Please check result on Workspace", report_url)
 
