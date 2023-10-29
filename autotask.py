@@ -285,13 +285,13 @@ if __name__ == "__main__":
                 version = ".".join(a_jira["version"].split(".")[:2])
                 if "updated" not in a_jira:
                     if "is_new" in a_jira and a_jira["is_new"]:
-                        issue = jira.create_issue(project=a_jira["project"], summary=a_jira["summary"],
-                                                      description=a_jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation',a_jira["team"]],
-                                                             fixVersions=[{"name":"Triage"}],customfield_12257=a_jira["steps"],
-                                                             assignee={"name":user_data["email"]})
-                        print(issue)
-                        a_jira["original_id"] = a_jira["id"]
-                        a_jira["id"] = issue.key
+                        # issue = jira.create_issue(project=a_jira["project"], summary=a_jira["summary"],
+                        #                               description=a_jira["description"], issuetype={'name': 'Bug'}, labels=['foundByAutomation',a_jira["team"]],
+                        #                                      fixVersions=[{"name":"Triage"}],customfield_12257=a_jira["steps"],
+                        #                                      assignee={"name":user_data["email"]})
+                        # print(issue)
+                        # a_jira["original_id"] = a_jira["id"]
+                        a_jira["id"] = "PORTAL-42633" #issue.key
                     else:
                         issue = jira.issue(a_jira["id"])
                     a_jira["summary"] = issue.get_field("summary")
@@ -375,8 +375,11 @@ if __name__ == "__main__":
                             scenario_item["history"] = monitor_scenarios[scenario]
                             comments = []
                             last_item = monitor_scenarios[scenario][-1]
-                            for a_comment in last_item["comments"]:
-                                comments.append(a_comment)
+                            if "comments" in last_item:
+                                for a_comment in last_item["comments"]:
+                                    comments.append(a_comment)
+                            else:
+                                last_item["comments"] = []
                             scenario_item["comments"] = comments
                             scenario_item["owner"] = task["owner"]
                             scenario_item["env"] = task["env"]
