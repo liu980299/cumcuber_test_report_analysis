@@ -341,10 +341,15 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
     feature = ""
     if "console_log" in scenario:
         res["console_log"] = scenario["console_log"].split("\n\u001b[m\u001b[37m")
+        if "test_users" in scenario:
+            res["test_users"] = scenario["test_users"]
         for log_line in res["console_log"]:
-            m = re.search("([^ ]+@threatmetrix\.com)",log_line)
-            if m:
-                res["user_id"] = m.group(1)
+            if log_line.find("Current login user is:") > 0:
+            # m = re.search("([^ ]+@threatmetrix\.com)",log_line)
+            # if m:
+                res["user_id"] = log_line.split("Current login user is:")[1].split("\n")[0]
+    if "Started on" in scenario:
+        res["start_time"] = scenario["Started on"]
     if "Ended on" in scenario:
         # lag = datetime.timedelta(minutes=mins)
         res["end_time"] = scenario["Ended on"]
@@ -382,7 +387,14 @@ def analysis_scenario(tag_id, scenario,log_contents,mins=5):
         previous_step = res["previous_step"]
     if not "failed_step" in res:
         res["failed_step"] = None
-    return {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step,"feature_file":feature,"scenario_url":res["url"]}
+    scenario_summary = {"url":data_path,"failed_step":res["failed_step"],"previous_step":previous_step,"feature_file":feature,"scenario_url":res["url"]}
+    for item in ["test_users","start_time","end_time"]:
+        if item == "test_users":
+            if item in res:
+                scenario_summary[item] = res[item]
+        else:
+            scenario_summary[item] = res[item].replace(" ","T")
+    return scenario_summary
 
 def get_dailyresult(confluence):
     server_url, page_id, username, token,jira_url,jira_auth = confluence.split("|")
@@ -451,7 +463,10 @@ def get_dailyresult(confluence):
                 index = 0
                 for td in tds:
                     text = str(td)
-                    contents[headers[index]] = text
+                    if index < len(headers):
+                        contents[headers[index]] = text
+                    else:
+                        print(tr)
                     tags[headers[index]] = td
                     index += 1
                     if (text.find("userkey") >= 0):
@@ -603,7 +618,21 @@ def getContext(step,context_flags,previous_context):
             level += 1
     return previous_context
 
-def timeline_analysis(scenario,timeline_res,context_flags):
+def setTestUser(account_dict,scenario_res):
+
+    scenario_res["test_users"] = account_dict
+    for user_name in scenario_res["test_users"]:
+        user_duration = scenario_res["test_users"][user_name]
+        if type(user_duration) == dict:
+            if "end_time" not in user_duration or user_duration["end_time"] > scenario_res["end_time"]:
+                user_duration["end_time"] = scenario_res["end_time"]
+        else:
+            for item in user_duration:
+                if "end_time" not in item or item["end_time"] > scenario_res["end_time"]:
+                    item["end_time"] = scenario_res["end_time"]
+
+
+def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
 
     if "tags" not in scenario :
         print("*** no tags in " + scenario["scenario"])
@@ -615,7 +644,32 @@ def timeline_analysis(scenario,timeline_res,context_flags):
         if container not in timeline_res:
             timeline_res[container] = {"start_time":scenario["Started on"],"end_time":scenario["Ended on"],"scenarios":[]}
         scenario_res={"start_time":scenario["Started on"],"end_time":scenario["Ended on"],"steps":[],"result":scenario["result"],"contexts":[]}
+        scenario_res["feature"] = scenario["feature"]
+        scenario_res["job"] = scenario["job"]
         scenario_res["name"] = scenario["scenario"]
+        if container in console_logs:
+            scenario_name = scenario["scenario"]
+            if scenario_name in console_logs[container]:
+                if type(console_logs[container][scenario_name]) == dict:
+                    setTestUser(console_logs[container][scenario_name],scenario_res)
+                else:
+                    for item in console_logs[container][scenario_name]:
+                        # assigned = True
+                        # for user_name in item:
+                        #     if item[user_name]["start_time"] < scenario_res["start_time"] or item[user_name]["start_time"] > scenario_res["end_time"]:
+                        #         assigned = False
+                        #         break
+                        #     if "end_time" not in item[user_name] or item[user_name]["end_time"] > scenario_res["end_time"]:
+                        #         item[user_name]["end_time"] = scenario_res["end_time"]
+                        # if assigned:
+                        #     scenario_res["test_users"] = item
+                        #     break
+
+                        if "assigned" not in item:
+                            setTestUser(item,scenario_res)
+                            # scenario_res["test_users"] = item
+                            item["assigned"] = True
+                            break
         scenario_res["url"] = scenario["scenario_url"]
         step_starttime = datetime.datetime.strptime(scenario["start_time"],"%Y-%m-%dT%H:%M:%S.%fZ")
         context_steps=[]
@@ -647,6 +701,9 @@ def timeline_analysis(scenario,timeline_res,context_flags):
         if len(context_res["steps"]) > 0:
             context_res["end_time"] = scenario_res["end_time"]
             scenario_res["contexts"].append(context_res)
+
+        if "test_users" not in scenario_res:
+            print(scenario_res)
         container_res = timeline_res[container]
         if "Ended on" not in scenario:
             print(scenario)
@@ -737,7 +794,8 @@ def get_job_consoles(server,job_url,console_logs):
             if link.text.find("console-") >=0:
                 log_url = link.attrs["href"]
                 log_response = server.jenkins_request(requests.Request('GET',job_url+"artifact/" + log_url))
-                console_logs[link.text.split(".")[0].split("-")[1]] = account_analysis(log_response.text)
+                container_name = link.text.split(".")[0].split("-",1)[1]
+                console_logs[container_name] = account_analysis(log_response.text)
     except requests.exceptions.ConnectionError:
         time.sleep(5)
         get_job_consoles(server,job_url,console_logs)
@@ -745,25 +803,47 @@ def get_job_consoles(server,job_url,console_logs):
 
 def account_analysis(console_text):
     res = {}
+    rex = r'\d{4}/\d{2}/\d{2}\s\d{2}:\d{2}:\d{2}'
     tag = "============================================ START SCENARIO ============================================\n"
     start = console_text.find(tag)
     log_content = console_text[start + len(tag):]
     while(start >=0):
+        current_res = None
         log_start = log_content.find(tag)
         scenario_text = log_content[0:log_start]
         scenario_name = scenario_text.split("\n")[0].split("|")[-1].strip()
-        res[scenario_name] =[]
+        current_scenario = {}
+        if scenario_name not in res:
+            res[scenario_name] =current_scenario
+        else:
+            if type(res[scenario_name]) == dict:
+                res[scenario_name] = [res[scenario_name]]
+            res[scenario_name].append(current_scenario)
         log_content = log_content[log_start + len(tag):]
         start = log_content.find(tag)
         console_log = log_content[:start]
-        lines = console_log.split("\n\u001b[m\u001b[37m")
+        lines = console_log.split("\n")
         for line in lines:
-            m = re.search("([^ ]+@threatmetrix\.com|[^ ]+@lexisnexisrisk\.com)",line)
-            if m:
-                username = m.group(1)
-                username = username.split("'")[-1]
-                if username not in res[scenario_name]:
-                    res[scenario_name].append(username)
+            if line.find("Current login user is:") > 0:
+                username = line.split("Current login user is:")[1].strip(" \n")
+                start_time = re.findall(rex,line)[0].replace("/","-")
+            # m = re.search("([^ ]+@threatmetrix\.com|[^ ]+@lexisnexisrisk\.com)",line)
+            # if m:
+            #     username = m.group(1)
+            #     username = username.split("'")[-1]
+                if username not in current_scenario:
+                    current_scenario[username] = {"start_time":start_time}
+                    if current_res:
+                        current_res["end_time"] = start_time
+                    current_res = current_scenario[username]
+                else:
+                    if type(current_scenario[username]) == dict:
+                        current_scenario[username] = [current_scenario[username]]
+                    current_scenario[username].append({"start_time":start_time})
+                    if current_res:
+                        current_res["end_time"] = start_time
+                    current_res = current_scenario[username][-1]
+                    # res[scenario_name].append(username)
         if start >=0:
             log_content = log_content[start + len(tag):]
 
@@ -808,6 +888,13 @@ if __name__ == "__main__":
     skips = args.skips.split(",")
     report_url = args.report_url
     log_list = args.log_map.split("|")
+    log_map = {}
+    for log_blob in log_list:
+        if log_blob.find("portal") >= 0 :
+            log_map["portal"] = log_blob
+        elif log_blob.find("crypto") >= 0:
+            log_map["crypto"] = log_blob
+
     lastbuilds = {}
     urls={}
     console_logs={}
@@ -889,7 +976,11 @@ if __name__ == "__main__":
                             latestBuildFailed = True
                 log_contents = {}
                 build_res = job_info[latestBuild]
-                get_job_consoles(console_servers[job_name], urls[job_name] + latestBuild +"/", console_logs)
+                if job_name not in console_logs:
+                    console_logs[job_name] = {}
+                    if not os.path.exists(job_name):
+                        os.mkdir(job_name)
+                get_job_consoles(console_servers[job_name], urls[job_name] + latestBuild +"/", console_logs[job_name])
                 if "PORTAL URL" in build_res and "Started on" in build_res :
                     job_scenarios = {}
                     for build_no in job_info:
@@ -928,8 +1019,8 @@ if __name__ == "__main__":
                         res[build_res["PORTAL URL"]]["builds"]={}
                         res[build_res["PORTAL URL"]]["last_build_failed"] = latestBuildFailed
                         res[build_res["PORTAL URL"]]["PORTAL URL"] =build_res["PORTAL URL"]
-                        res[build_res["PORTAL URL"]]["start_time"] = build_res["Started on"].replace(" ","T")
-                        res[build_res["PORTAL URL"]]["end_time"] = build_res["Ended on"].replace(" ","T")
+                        # res[build_res["PORTAL URL"]]["start_time"] = build_res["Started on"].replace(" ","T")
+                        # res[build_res["PORTAL URL"]]["end_time"] = build_res["Ended on"].replace(" ","T")
                         for env in teams:
                             if build_res["PORTAL URL"].find(env) > 0:
                                 res[build_res["PORTAL URL"]]["Env"] = env
@@ -949,6 +1040,10 @@ if __name__ == "__main__":
                     env_res["versions"][job_name] = build_res["PORTAL VERSION"]
                     context_res= env_res["context"]
                     timeline_res = env_res["timeline"]
+                    if ("start_time" not in env_res or build_res["Started on"].replace(" ","T") < env_res["start_time"]) and job_name in summary_jobs:
+                        env_res["start_time"] = build_res["Started on"].replace(" ","T")
+                    if ("end_time" not in env_res or build_res["Ended on"].replace(" ","T") > env_res['end_time']) and job_name in summary_jobs:
+                        env_res["end_time"] = build_res["Ended on"].replace(" ","T")
                     if "version" not in env_res or env_res["version"] < build_res["PORTAL VERSION"]:
                         env_res["version"] = build_res["PORTAL VERSION"]
                     if "jiras" not in env_res and confluence_res:
@@ -974,7 +1069,8 @@ if __name__ == "__main__":
                     for scenario in build_res["scenarioes"]:
                         scenario["job_name"] = job_name
                         if job_name in summary_jobs:
-                            timeline_analysis(scenario,timeline_res,context_flags)
+                            timeline_analysis(scenario,timeline_res,context_flags,console_logs[job_name])
+
                         if scenario["result"] == "failed":
                             if len(steps_dict) > 0:
                                 java_file, failed_step = get_failed_java(scenario,steps_dict,skips)
