@@ -1,0 +1,241 @@
+{
+    "contents": {
+        "session": {
+            "extract": {
+                "dependencies": {
+                    "pattern": "email",
+                    "type": "list",
+                    "value": "<left>@<right>"
+                },
+                "org": {
+                    "pattern": {
+                        "selector": {
+                            "Get org from IAM in findOrg, org = ": 1
+                        },
+                        "splitter": "."
+                    },
+                    "value": "<left>"
+                },
+                "request_id": {
+                    "pattern": {
+                        "processor": {
+                            "right": " \n"
+                        },
+                        "splitter": "request ID: "
+                    },
+                    "value": "<right>"
+                },
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                }
+            },
+            "matches": [
+                {
+                    "extract": {
+                        "name": {
+                            "index": 0,
+                            "pattern": {
+                                "selector": {
+                                    "Authenticating ": 1
+                                },
+                                "splitter": " with"
+                            },
+                            "value": "<left>"
+                        },
+                        "request_id": {
+                            "pattern": {
+                                "processor": {
+                                    "right": " \n"
+                                },
+                                "splitter": "request ID: "
+                            },
+                            "value": "<right>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "TmxAPIAuthenticationFilter",
+                            "Authenticating"
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "error": {
+        "matches": [
+            {
+                "extract": {
+                    "filename": {
+                        "pattern": {
+                            "left": [
+                                " "
+                            ],
+                            "splitter": ".java"
+                        },
+                        "value": "<left>"
+                    },
+                    "level": {
+                        "value": "ERROR"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "31mERROR "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception": {
+        "matches": [
+            {
+                "exclude": {
+                    "must": [
+                        "[info "
+                    ]
+                },
+                "extract": {
+                    "name": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<left>"
+                    },
+                    "reason": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "[m "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_end": {
+        "matches": [
+            {
+                "extract": {
+                    "caused_by": {
+                        "pattern": {
+                            "splitter": "Caused by: "
+                        },
+                        "processor": {
+                            "right": " "
+                        },
+                        "right": [
+                            ":"
+                        ],
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "Caused by: "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_msg": {
+        "matches": [
+            {
+                "extract": {
+                    "message": {
+                        "pattern": {
+							"selector": {
+								":": "1+"
+							},
+
+                            "splitter": "\n"
+                        },
+                        "value": "<left>"
+                    }
+                },
+                "include": {
+                    "option": [
+                        ".class",
+                        ".java",
+                        ".js"
+                    ]
+                }
+            }
+        ]
+    },
+    "extract": {
+        "email": {
+            "left": [
+                " ",
+                ",",
+                "[",
+                "'",
+                "=",
+                "auth_",
+                ":",
+                "#",
+                "FCC_",
+                "FRAUD_",
+                "/"
+            ],
+            "processor": {
+                "left": "{",
+                "right": "_}"
+            },
+            "right": [
+                " ",
+                ",",
+                "]",
+                "'",
+                "#",
+                ".\n",
+                "\n",
+                "_"
+            ],
+            "splitter": "@",
+            "validator": {
+                "right": {
+                    "include": {
+                        "option": [
+                            ".com",
+                            ".net",
+                            ".org"
+                        ]
+                    }
+                }
+            }
+        },
+        "exception": {
+            "right": [
+                "\n"
+            ],
+            "selector": {
+                "[m ": 1
+            },
+            "splitter": ":"
+        }
+    },
+    "key": "request_id",
+    "log_time": 23,
+    "machine": {
+        ":": 0
+    },
+    "maps": [
+        "user",
+        "org"
+    ],
+    "outputs": [
+        "maps"
+    ],
+    "sub_index": 19,
+    "thread": {
+        "left": " [",
+        "right": "] "
+    },
+	"unique_keys":["user","org"],
+	"ref_key":"user"
+}

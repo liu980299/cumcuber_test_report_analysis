@@ -1,0 +1,620 @@
+{
+    "categories": {
+        "case": "cm",
+        "cm": "cm",
+        "crypto": "crypto",
+        "dwh": "data",
+        "event": "data",
+        "iam": "iam",
+        "otin": "otin",
+        "policy": "policy",
+        "report": "report"
+    },
+    "contents": {
+        "cas": {
+            "matches": [
+                {
+                    "include": {
+                        "must": [
+                            "PortalCasAuthenticationEntryPoint.java"
+                        ]
+                    }
+                }
+            ]
+        },
+        "general": {
+            "extract": {
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                }
+            },
+            "matches": [
+                {
+                    "include": {
+                        "must": [
+                            "rest.GeneralRestServiceImpl",
+                            "IP in headers"
+                        ]
+                    }
+                }
+            ],
+            "register": {
+                "session": {
+                    "name": "general"
+                }
+            }
+        },
+        "job": {
+            "matches": [
+                {
+                    "extract": {
+                        "job_name": {
+                            "pattern": {
+                                "selector": {
+                                    ">>": 1
+                                },
+                                "splitter": "<<"
+                            },
+                            "value": "<left>"
+                        },
+                        "org": {
+                            "pattern": {
+                                "selector": {
+                                    "entry data for [": 1
+                                },
+                                "splitter": ","
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "service.SharedCommonService ",
+                            ">>"
+                        ]
+                    }
+                }
+            ],
+            "sub_type": true
+        },
+        "logout": {
+            "matches": [
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "PortalSecurityContextLogoutHandler",
+                            "logging out"
+                        ]
+                    }
+                }
+            ],
+            "register": {
+                "session": {
+                    "name": "logout"
+                }
+            }
+        },
+        "maintenance": {
+            "distributed": "user",
+            "extract": {
+                "user": {
+                    "index": 0,
+                    "pattern": {
+                        "processor": {
+                            "left": " "
+                        },
+                        "selector": {
+                            "_": "2+"
+                        },
+                        "splitter": "\n"
+                    },
+                    "value": "<left>"
+                }
+            },
+            "matches": [
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": {
+                                "processor": {
+                                    "left": " "
+                                },
+                                "selector": {
+                                    "_": "2+"
+                                },
+                                "splitter": "\n"
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "cache.PreferencesCacheService",
+                            "Deleting cached preferences with key"
+                        ]
+                    }
+                },
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": {
+                                "processor": {
+                                    "left": " "
+                                },
+                                "selector": {
+                                    "_": "2+"
+                                },
+                                "splitter": "\n"
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "cache.BaseRepository",
+                            "deleting the Document with id"
+                        ]
+                    }
+                }
+            ]
+        },
+        "session": {
+            "matches": [
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "security.PortalCasAuthenticationProvider",
+                            "private key for orgs"
+                        ]
+                    }
+                }
+            ],
+            "start": 4
+        },
+        "sub_job": {
+            "end": [
+                {
+                    "include": {
+                        "must": [
+                            "FINISHED: Job"
+                        ]
+                    }
+                }
+            ],
+            "extract": {
+                "org": {
+                    "pattern": {
+                        "selector": {
+                            "http://iam/api/v2/orgs/": 1
+                        },
+                        "splitter": "/"
+                    },
+                    "value": "<left>"
+                },
+                "org_request_id": {
+                    "index": 0,
+                    "pattern": "org_request_id",
+                    "value": "<right>"
+                },
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                },
+                "user_request_id": {
+                    "index": 0,
+                    "pattern": "user_request_id",
+                    "value": "<right>"
+                }
+            },
+            "maps": "user_request_id",
+            "matches": [
+                {
+                    "extract": {
+                        "name": {
+                            "index": 0,
+                            "pattern": {
+                                "selector": {
+                                    ">>": 1
+                                },
+                                "splitter": "<<"
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "service.SharedCommonService ",
+                            "STARTING"
+                        ]
+                    }
+                }
+            ],
+            "register": {
+                "job": {
+                    "name": "sub_jobs",
+                    "type": "list"
+                },
+                "session": {
+                    "name": "job",
+                    "type": "list"
+                }
+            }
+        },
+        "unknown": {
+            "extract": {
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                },
+                "user_request_id": {
+                    "index": 0,
+                    "pattern": "user_request_id",
+                    "value": "<right>"
+                }
+            },
+			"register": {
+                "session": {
+                    "name": "unknown",
+                    "type": "list"
+                }
+            }
+        },
+        "worker": {
+            "end": [
+                {
+                    "include": {
+                        "must": [
+                            "processUserSessionManagement"
+                        ]
+                    }
+                }
+            ],
+            "extract": {
+                "org": {
+                    "pattern": {
+                        "selector": {
+                            "GWT_LOGGING{orgId='": 1
+                        },
+                        "splitter": "'"
+                    },
+                    "value": "<left>"
+                },
+                "org_request_id": {
+                    "index": 0,
+                    "pattern": "org_request_id",
+                    "value": "<right>"
+                },
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                },
+                "user_request_id": {
+                    "index": 0,
+                    "pattern": "user_request_id",
+                    "value": "<right>"
+                }
+            },
+            "maps": "user_request_id",
+            "matches": [
+                {
+                    "extract": {
+                        "name": {
+                            "index": 0,
+                            "pattern": {
+                                "selector": {
+                                    "for ": 1
+                                },
+                                "splitter": "\n"
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "validation.GwtRestValidatorAdvice"
+                        ]
+                    }
+                },
+                {
+                    "extract": {
+                        "name": {
+                            "value": "getIndexPageStartElements"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "controller.PortalUIClientController",
+                            "getIndexPageStartElements"
+                        ]
+                    }
+                },
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
+                        },
+					    "name": {
+                            "index": 0,
+                            "pattern": {
+                                "selector": {
+                                    "execution( ": 1
+                                },
+                                "splitter": "("
+                            },
+                            "value": "<left>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "featurepermission.FeaturePermissionAdvice"
+                        ]
+                    },
+                    "line_no": 2
+                }
+            ],
+            "register": {
+                "session": {
+                    "name": "worker",
+                    "type": "list"
+                }
+            },
+            "sub_index": 16
+        }
+    },
+    "error": {
+        "matches": [
+            {
+                "extract": {
+                    "filename": {
+                        "pattern": {
+                            "left": [
+                                " "
+                            ],
+                            "splitter": ".java"
+                        },
+                        "value": "<left>"
+                    },
+                    "level": {
+                        "value": "ERROR"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "31mERROR "						
+                    ]
+                }
+            },
+            {
+                "extract": {
+                    "filename": {
+                        "pattern": {
+                            "left": [
+                                " "
+                            ],
+                            "splitter": ".java"
+                        },
+                        "value": "<left>"
+                    },
+                    "level": {
+                        "value": "WARN"
+                    }
+                },
+                "include": {
+                    "must": [                        
+						"33mWARN "
+                    ]
+                }
+            }
+			
+        ]
+    },
+    "exception": {
+        "matches": [
+            {
+                "exclude": {
+                    "must": [
+                        "[info "
+                    ]
+                },
+                "extract": {
+                    "name": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<left>"
+                    },
+                    "reason": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<left>:<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "[m "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_end": {
+        "matches": [
+            {
+                "extract": {
+                    "caused_by": {
+                        "pattern": {
+                            "splitter": "Caused by: "
+                        },
+                        "processor": {
+                            "right": " "
+                        },
+                        "right": [
+                            ":"
+                        ],
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "Caused by: "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_msg": {
+        "matches": [
+            {
+                "extract": {
+                    "message": {
+                        "pattern": {
+							"selector": {
+								":": "1+"
+							},
+							"splitter":"\n"
+                        },
+                        "value": "<left>"
+                    }
+                },
+                "include": {
+                    "option": [
+                        ".class",
+                        ".java",
+                        ".js"
+                    ]
+                }
+            }
+        ]
+    },
+    "extract": {
+        "email": {
+            "left": [
+                " ",
+                ",",
+                "[",
+                "'",
+                "=",
+                "Export_",
+                "FCC_",
+                "fcc_",
+                "FRAUD_",
+                "fraud_",
+                ":",
+                "/",
+                "\"",
+                ")"
+            ],
+            "processor": {
+                "left": "auth_#:{",
+                "right": "_}."
+            },
+            "right": [
+                " ",
+                ",",
+                "]",
+				"{",
+                ")",
+                "'",
+                "\"",
+                "\n",
+                ":",
+                "(",
+				"-",
+                "/"
+            ],
+            "splitter": "@",
+            "validator": {
+                "right": {
+                    "include": {
+                        "must": [
+                            "."
+                        ]
+                    }
+                }
+            }
+        },
+        "exception": {
+            "right": [
+                "\n"
+            ],
+            "selector": {
+                "[m ": 1
+            },
+            "splitter": ":"
+        },
+        "org_request_id": {
+            "processor": {
+                "right": "\n"
+            },
+            "selector": {
+                "http://crypto/api/v1/org/orgInfoRequest": 1
+            },
+            "splitter": "and request "
+        },
+        "user_request_id": {
+            "processor": {
+                "right": "\n"
+            },
+            "selector": {
+                "http://crypto/api/v1/org/handleUserAuthorizationRequest": 1,
+                "http://crypto/api/v1/user/processUserSessionManagement": 1
+            },
+            "splitter": "and request "
+        }
+    },
+    "key": "user",
+    "key_maps": {
+        "org_request_id": {
+            "map": "org",
+            "path": "request_id:org"
+        },
+        "user_request_id": {
+            "map": "user",
+            "path": "request_id:user"
+        }
+    },
+    "log_time": 23,
+    "machine": {
+        ":": 0
+    },
+    "maps": [
+        "org"
+    ],
+    "no_key_contents": {
+        "job": "org"
+    },
+    "sub_index": 19,
+    "sub_items": [
+        "worker",
+        "job",
+		"unknown"
+    ],
+    "thread": {
+		"main":"main",
+        "left": " [",
+        "right": "] "
+    },
+	"unique_keys":["user","org","user_request_id","org_request_id"]
+}

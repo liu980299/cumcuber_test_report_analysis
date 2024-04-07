@@ -1,0 +1,188 @@
+{
+    "contents": {
+        "session": {
+            "extract": {
+                "user": {
+                    "index": 0,
+                    "pattern": "email",
+                    "value": "<left>@<right>"
+                }
+            },
+            "matches": [
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "converter.UserNameConverter",
+                            " Converting user name"
+                        ]
+                    }
+                },
+                {
+                    "extract": {
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
+                        }
+                    },
+                    "include": {
+                        "must": [
+                            "saml.PingFederateSamlRequestResolver",
+                            "SAML pickupLocation"
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "error": {
+        "matches": [
+            {
+                "extract": {
+                    "filename": {
+                        "pattern": {
+                            "left": [
+                                " "
+                            ],
+                            "splitter": ".java"
+                        },
+                        "value": "<left>"
+                    },
+                    "level": {
+                        "value": "ERROR"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "31mERROR "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception": {
+        "matches": [
+            {
+                "exclude": {
+                    "must": [
+                        "[info "
+                    ]
+                },
+                "extract": {
+                    "name": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<left>"
+                    },
+                    "reason": {
+                        "index": -1,
+                        "pattern": "exception",
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "[m "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_end": {
+        "matches": [
+            {
+                "extract": {
+                    "caused_by": {
+                        "pattern": {
+                            "splitter": "Caused by: "
+                        },
+                        "processor": {
+                            "right": " "
+                        },
+                        "right": [
+                            ":"
+                        ],
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "Caused by: "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_msg": {
+        "matches": [
+            {
+                "extract": {
+                    "message": {
+                        "pattern": {
+                            "splitter": ":"
+                        },
+                        "processor": {
+                            "right": "\n"
+                        },
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "option": [
+                        ".class",
+                        ".java",
+                        ".js"
+                    ]
+                }
+            }
+        ]
+    },
+    "extract": {
+        "email": {
+            "left": [
+                " ",
+                ",",
+                "[",
+                "'",
+                "=",
+                "Export_",
+                ":"
+            ],
+            "processor": {
+                "left": "auth_#:{",
+                "right": "_}"
+            },
+            "right": [
+                " ",
+                ",",
+                "]",
+                "'",
+                "FCC_",
+                "FRAUD_"
+            ],
+            "splitter": "@"
+        },
+        "exception": {
+            "right": [
+                "\n"
+            ],
+            "selector": {
+                "[m ": 1
+            },
+            "splitter": ":"
+        }
+    },
+    "key": "user",
+    "log_time": 23,
+    "thread": {
+        "left": " [",
+        "right": "] "
+    }
+}

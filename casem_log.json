@@ -1,0 +1,242 @@
+{
+    "contents": {
+        "kafka": {
+            "case_id": {
+                "index": 0,
+                "pattern": {
+                    "left": [
+                        "'"
+                    ],
+                    "right": [
+                        "'",
+                        "_"
+                    ],
+                    "splitter": "' message '"
+                },
+                "value": "<right>@<left>"
+            },
+            "distributed": "case_id"
+        },
+        "session": {
+            "extract": {
+                "case_id": {
+                    "index": 0,
+                    "pattern": {
+                        "left": [
+                            "'"
+                        ],
+                        "right": [
+                            ","
+                        ],
+                        "splitter": "', caseId '"
+                    },
+                    "value": "<right>@<left>"
+                },
+                "request_id": {
+                    "index": 0,
+                    "pattern": {
+                        "left": [
+                            "'"
+                        ],
+                        "right": [
+                            "'"
+                        ],
+                        "splitter": "requestId '"
+                    },
+                    "value": "<right>"
+                }
+            }
+        },
+        "task": {
+            "case_id": {
+                "index": 0,
+                "pattern": {
+                    "left": [
+                        "'"
+                    ],
+                    "right": [
+                        "'",
+                        "_"
+                    ],
+                    "splitter": "' message '"
+                },
+                "value": "<right>@<left>"
+            },
+            "matches": [
+                {
+                    "include": {
+                        "must": [
+                            "TimeoutCase starting"
+                        ]
+                    }
+                }
+            ]
+        },
+        "webclient": {
+            "distributed": "request_id",
+            "extract": {
+                "request_id": {
+                    "index": 0,
+                    "pattern": {
+                        "left": [
+                            "'"
+                        ],
+                        "right": [
+                            "'"
+                        ],
+                        "splitter": "requestId '"
+                    },
+                    "value": "<right>"
+                }
+            }
+        }
+    },
+    "error": {
+        "matches": [
+            {
+                "extract": {
+                    "filename": {
+                        "pattern": {
+                            "left": [
+                                " "
+                            ],
+                            "splitter": ".java"
+                        },
+                        "value": "<left>"
+                    },
+                    "level": {
+                        "value": "ERROR"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "31mERROR "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception": {
+        "matches": [
+            {
+                "exclude": {
+                    "must": [
+                        "[info "
+                    ]
+                },
+                "extract": {
+                    "name": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<left>"
+                    },
+                    "reason": {
+                        "index": 0,
+                        "pattern": "exception",
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "[m "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_end": {
+        "matches": [
+            {
+                "extract": {
+                    "caused_by": {
+                        "pattern": {
+                            "splitter": "Caused by: "
+                        },
+                        "processor": {
+                            "right": " "
+                        },
+                        "right": [
+                            ":"
+                        ],
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "must": [
+                        "Caused by: "
+                    ]
+                }
+            }
+        ]
+    },
+    "exception_msg": {
+        "matches": [
+            {
+                "extract": {
+                    "message": {
+                        "pattern": {
+                            "splitter": ":"
+                        },
+                        "processor": {
+                            "right": "\n"
+                        },
+                        "value": "<right>"
+                    }
+                },
+                "include": {
+                    "option": [
+                        ".class",
+                        ".java",
+                        ".js"
+                    ]
+                }
+            }
+        ]
+    },
+    "extract": {
+        "exception": {
+            "right": [
+                " id",
+                " org",
+                " ent",
+                "\n"
+            ],
+            "selector": {
+                "[m ": 1
+            },
+            "splitter": ":"
+        }
+    },
+    "key": "case_id",
+    "log_time": 23,
+    "maps": [
+        "request_id"
+    ],
+    "thread": {
+        "contents": {
+            "kafka": {
+                "match": "ForkJoinPool",
+                "splitter": ",",
+                "thread": 0
+            },
+            "session": {
+                "id": 1,
+                "match": "http-nio-",
+                "splitter": ",",
+                "thread": 0
+            },
+            "task": {
+                "match": "task",
+                "splitter": ",",
+                "thread": 0
+            },
+            "webclient": {
+                "match": "reactor",
+                "splitter": ",",
+                "thread": 0
+            }
+        },
+        "left": " [",
+        "right": "] "
+    }
+}
