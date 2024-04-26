@@ -671,12 +671,29 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
                             item["assigned"] = True
                             break
         scenario_res["url"] = scenario["scenario_url"]
+        if "test_data_users" not in scenario_res:
+            scenario_res["test_data_users"] = []
         step_starttime = datetime.datetime.strptime(scenario["start_time"],"%Y-%m-%dT%H:%M:%S.%fZ")
         context_steps=[]
         context_res={"name":"Login","start_time":scenario_res["start_time"],"steps":[]}
         previous_context = "Login"
         for step in scenario["steps"]:
             step_starttime_str = step_starttime.strftime("%Y-%m-%d %H:%M:%S")
+            if step["name"].find("@") >=0 :
+                matches = re.findall(r"\S+@\S+\.\S+", step["name"])
+                for match in matches:
+                    test_data_user = match.strip("\"'")
+                    scenario_res["test_data_users"].append(test_data_user)
+            if "table" in step:
+                for row in step["table"]:
+                    for cell in row:
+                        if cell.find("@") >=0:
+                            matches = re.findall(r"\S+@\S+\.\S+", cell)
+                            for match in matches:
+                                test_data_user = match.strip("\"'")
+                                scenario_res["test_data_users"].append(test_data_user)
+
+
             step_str = step_starttime.strftime("%Y-%m-%d %H:%M:%S") + "|" + step["name"]
             step_context = getContext(step,context_flags,previous_context)
             if not step_context == previous_context:
