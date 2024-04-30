@@ -442,7 +442,7 @@ def get_dailyresult(confluence):
                     ldap_user = owner["LDAP User"].lower()
                     if ldap_user not in owner_list:
                         owner_dict[owner["QA"]] = ldap_user
-                        print(owner)
+                        # print(owner)
                         user = confluence.get_user_details_by_userkey(owner["QA"])
                         owner_list[ldap_user] = {}
                         owner_list[ldap_user]["user"] = user["displayName"]
@@ -683,7 +683,8 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
                 matches = re.findall(r"\S+@\S+\.\S+", step["name"])
                 for match in matches:
                     test_data_user = match.strip("\"'")
-                    scenario_res["test_data_users"].append(test_data_user)
+                    if test_data_user not in scenario_res["test_data_users"]:
+                        scenario_res["test_data_users"].append(test_data_user)
             if "table" in step:
                 for row in step["table"]:
                     for cell in row:
@@ -691,7 +692,8 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
                             matches = re.findall(r"\S+@\S+\.\S+", cell)
                             for match in matches:
                                 test_data_user = match.strip("\"'")
-                                scenario_res["test_data_users"].append(test_data_user)
+                                if test_data_user not in scenario_res["test_data_users"]:
+                                    scenario_res["test_data_users"].append(test_data_user)
 
 
             step_str = step_starttime.strftime("%Y-%m-%d %H:%M:%S") + "|" + step["name"]
@@ -706,8 +708,8 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
             if "duration" not in step:
                 if len(scenario["steps"]) == 1:
                     step["duration"] = scenario["Test Runtime"]
-                else:
-                    print(step)
+                # else:
+                #     print(step)
 
             m = pattern.search(step["duration"])
             if m:
@@ -719,11 +721,9 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
             context_res["end_time"] = scenario_res["end_time"]
             scenario_res["contexts"].append(context_res)
 
-        if "test_users" not in scenario_res:
-            print(scenario_res)
         container_res = timeline_res[container]
-        if "Ended on" not in scenario:
-            print(scenario)
+        if len(scenario_res["test_data_users"]) == 0:
+            scenario_res.pop("test_data_users")
         if scenario["Started on"] < container_res["start_time"]:
             container_res["start_time"] = scenario["Started on"]
             container_res["scenarios"].insert(0,scenario_res)
