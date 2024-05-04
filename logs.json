@@ -1,0 +1,12 @@
+[
+    {
+		"name":"crypto_log",
+        "file": "<env>_crypto.log"
+    },
+    {	"name":"portal_log",
+        "map_keys": "<env>_crypto/maps.json",
+        "file": "<env>_portal.log",
+		"ignores":["RemoteLoggingRestServiceImpl::logUserActivity"],
+		"main":true
+    }
+]
