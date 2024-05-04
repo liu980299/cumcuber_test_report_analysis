@@ -1,5 +1,7 @@
 import datetime
 import os, json
+import zipfile
+
 from utils import getEmails,email_char,getStartTime,matchLine,extractLine
 
 
@@ -74,9 +76,6 @@ class LogParser:
 		thread_cfg = self.log_cfg["thread"]
 		for line_no in range(len(self.lines)):
 			line = self.lines[line_no]
-			if line.find("k8s-worker109.qa2.sac: [m[1;31mERROR [main] 2024-03-28T11:19:42,871 HttpCaller.java staticcontent.HttpCaller (line 35) Failed to create HttpEntity for http://static-content/api/version")>=0:
-				print(line)
-
 			machine = None
 			if self.machine:
 				for key in self.machine:
@@ -95,6 +94,8 @@ class LogParser:
 							if "id" in content_cfg:
 								thread_res["id"] = items[content_cfg["id"]]
 							break
+				else:
+					thread_no = thread_no.split(",")[0]
 				log_time = getStartTime(line, self.test_date)
 				line_info = {"log_time":log_time,"msg":line,"thread":thread_no}
 				if len(thread_res) > 0:
@@ -136,7 +137,10 @@ class LogParser:
 					if not map == self.key and map in log_unit:
 						self.setMapValue(map,log_unit)
 			elif self.key in log_unit and self.key in line_info and not line_info[self.key] == log_unit[self.key]:
-				return False
+				if ("dependencies" not in log_unit and "dependencies" not in line_info) or \
+				   ("dependencies" in log_unit and line_info[self.key] not in log_unit["dependencies"]) or \
+				   ("dependencies" in line_info and log_unit[self.key] not in line_info["dependencies"])	:
+					return False
 			key_names = [key_name for key_name in line_info]
 			if "key_maps" in self.log_cfg:
 				for key_name in key_names:
@@ -180,8 +184,8 @@ class LogParser:
 	def setMapValue(self,key,log_unit):
 		if not key == self.key and key in log_unit:
 			key_map = self.maps[self.key][key]
-			if type(log_unit[key]) == list:
-				print(log_unit)
+			# if type(log_unit[key]) == list:
+			# 	print(log_unit)
 			if log_unit[key] not in self.maps[key]:
 				self.maps[key][log_unit[key]] = log_unit[self.key]
 			else:
@@ -199,8 +203,6 @@ class LogParser:
 
 	def getThreadType(self, line_res, line_info):
 		line = line_res["msg"]
-		if line.find("k8s-worker117.qa2.sac: [m[32mINFO  [qtp230944320-652] 2024-02-26T09:29:24,704 PortalCasAuthenticationProvider.java security.PortalCasAuthenticationProvider (line 61) User cucumber-cm-user4@threatmetrix.com holds private keys for consortia [15365, 15595, 14700, 15596, 15612, 15613, 14702, 14703]")>=0:
-			print(line_res)
 		contents_cfg = self.log_cfg["contents"]
 		global_cfg = self.log_cfg["extract"]
 		if "$thread" in line_info:
@@ -233,8 +235,6 @@ class LogParser:
 								extract_cfgs = match_cfg["extract"]
 								for name in extract_cfgs:
 									extract_cfg = extract_cfgs[name]
-									if type(extract_cfg) == int:
-										print(extract_cfg)
 									extractLine(line,line_info,name, extract_cfg,global_cfg)
 							if ("line_no" not in match_cfg or self.thread_no not in self.log_units) and "distributed" not in contents_cfg:
 								return content
@@ -257,37 +257,18 @@ class LogParser:
 						# self.setValues(line_info)
 		if self.thread_no in self.log_units:
 			log_unit = self.log_units[self.thread_no]
-			if type(log_unit["msg"]) == str:
-				print(log_unit)
+			if "log_file" not in log_unit:
+				log_unit["log_file"] = self.name
 			if "start_time" not in log_unit:
 				log_unit["start_time"] = line_res["log_time"]
-			log_unit["msg"].append(line)
 			log_type = log_unit["type"]
-			log_unit["end_time"] = line_res["log_time"]
-			if "error" in line_res:
-				if "error" not in log_unit:
-					error = {"items":{}}
-					log_unit["error"] = error
-					self.error_list.append(error)
-					error["id"] = len(self.error_list)
-				if line_res["error"]["level"] in ["ERROR","FATAL"]:
-					log_unit["error"]["level"] = line_res["error"]["level"]
-				if "stacks" in line_res["error"]:
-					log_unit["error"]["stacks"] = line_res["error"]["stacks"]
-					self.getStacksName(log_unit["error"])
-					for key in line_res["error"]:
-						log_unit["error"][key] = line_res["error"][key]
-					#having stacks level would be promoted to be ERROR
-					if not log_unit["error"]["level"] == "FATAL":
-						log_unit["error"]["level"] = "ERROR"
-				log_unit["error"]["items"][len(log_unit["msg"])] = line_res["error"]
-				if "type" in log_unit:
-					log_unit["error"]["type"] = log_unit["type"]
 			if log_type in contents_cfg:
 				if "extract" in contents_cfg[log_type]:
 					for name in contents_cfg[log_type]["extract"]:
 						extract_cfg = contents_cfg[log_type]["extract"][name]
-						extractLine(line, line_info, name, extract_cfg, global_cfg)
+						res = extractLine(line, line_info, name, extract_cfg, global_cfg)
+						if res and name == self.key and len(res) > 1:
+							line_info["dependencies"] = res
 						# self.register()
 				if not self.setValues(line_info):
 					if len(self.log_cfg["contents"]) == 1:
@@ -296,25 +277,57 @@ class LogParser:
 				if "end" in self.log_cfg["contents"][log_type]:
 					if self.matchLine(line,self.log_cfg["contents"][log_type]["end"],line_info,self.log_cfg["extract"]):
 						self.endThread()
+			log_unit["msg"].append(line)
+			log_unit["end_time"] = line_res["log_time"]
+			if "error" in line_res:
+				self.setErrorByLine(log_unit,line_res)
 
 			if self.key in line_info and self.key in log_unit and not line_info[self.key] == log_unit[self.key]  \
 					and ("dependencies" not in log_unit or line_info[self.key] not in log_unit["dependencies"]):
 				# self.endThread()
-				print(line)
+				# print(line)
 				if len(self.log_cfg["contents"]) == 1:
 					return "session"
 
 		return ""
 
+	def setErrorByLine(self,log_unit, line_res):
+		if "error" not in log_unit:
+			error = {"items": {}}
+			log_unit["error"] = error
+			self.error_list.append(error)
+			error["id"] = len(self.error_list)
+		error = log_unit["error"]
+		if line_res["error"]["level"] in ["ERROR", "FATAL"]:
+			log_unit["error"]["level"] = line_res["error"]["level"]
+			error["msg"] = line_res["msg"]
+		if "stacks" in line_res["error"]:
+			if "stacks" not in error:
+				error["stacks"] = {}
+			for exception in line_res["error"]["stacks"]:
+				log_unit["error"]["stacks"][exception] = line_res["error"]["stacks"][exception]
+			self.getStacksName(log_unit["error"])
+			for key in line_res["error"]:
+				log_unit["error"][key] = line_res["error"][key]
+			# having stacks level would be promoted to be ERROR
+			if not log_unit["error"]["level"] == "FATAL":
+				log_unit["error"]["level"] = "ERROR"
+		log_unit["error"]["items"][len(log_unit["msg"])] = line_res["error"]
+		if "type" in log_unit:
+			log_unit["error"]["type"] = log_unit["type"]
+
 	def endThread(self):
-		if self.thread_no == "qtp1816783372-10994":
-			print(self.thread_no)
 		if self.thread_no in self.log_units:
 			log_type = self.log_units[self.thread_no]["type"]
 			if log_type in self.log_cfg["contents"]:
 				content_cfg = self.log_cfg["contents"][log_type]
 				if "sub_type" not in content_cfg and "distributed" not in content_cfg:
 					self.setContent()
+			else:
+				if self.unknown and not self.unknown["thread"] == self.thread_no:
+					self.setUnknown(self.unknown)
+					self.injectContent("unknown",self.unknown)
+				self.unknown = self.log_units[self.thread_no]
 			self.log_units.pop(self.thread_no)
 
 	def startThread(self, thread_index):
@@ -347,14 +360,13 @@ class LogParser:
 				self.others["error"][name][log_unit["thread"]] = {}
 			self.others["error"][name][log_unit["thread"]][log_unit["start_time"]] = log_unit
 
-			print(log_unit)
 		else:
 			if log_unit["type"] not in self.others[content]:
 				self.others[content][log_unit["type"]] = {}
 			others = self.others[content][log_unit["type"]]
 			if log_unit["thread"] not in others:
 				others[log_unit["thread"]] = {"index":[]}
-			self.injectByTime(self.others[content][log_unit["type"]][log_unit["thread"]], log_unit)
+			self.injectByTime(self.others[content][log_unit["type"]][log_unit["thread"]], log_unit,is_others=True)
 
 	def insertByTime(self,item_list,item,field=None):
 		index = len(item_list)
@@ -392,12 +404,12 @@ class LogParser:
 	def injectContent(self,content,log_unit,log_time=None):
 		if not log_time:
 			log_time = log_unit["start_time"]
-		if log_unit["thread"] == 'qtp1005779674-913' and log_unit["type"] == "unknown":
-			print(log_unit)
 
 
 		if content in self.log_cfg["no_key_contents"]:
 			content_key = self.log_cfg["no_key_contents"][content]
+			if content_key not in log_unit:
+				print("*** not found content_key in log unit " + str(log_unit))
 			unit_content_key = log_unit[content_key]
 
 			if content not in self.contents:
@@ -418,6 +430,31 @@ class LogParser:
 			else:
 				self.injectByTime(self.contents[content],log_unit,log_time)
 
+	def startLogUnit(self,line_res,line,thread_type,pre_key,line_info):
+		log_unit = {"thread": self.thread_no, "start_time": line_res["log_time"], "msg": [line]}
+		log_unit["type"] = thread_type
+		if len(pre_key) > 0:
+			log_unit["pre_key"] = pre_key
+		log_unit["start_time"] = line_res["log_time"]
+
+		self.log_units[self.thread_no] = log_unit
+		self.setValues(line_info)
+		if "error" in line_res:
+			self.setErrorByLine(log_unit, line_res)
+
+	def setSubType(self, line,line_res,line_info,thread_type):
+		log_unit = {"thread": self.thread_no, "start_time": line_res["log_time"], "msg": [line]}
+		if "start_time" not in log_unit:
+			log_unit["start_time"] = line_res["log_time"]
+		log_unit["sub_type"] = thread_type
+		log_unit["type"] = self.log_cfg["contents"][thread_type]["type"]
+		if "name" in self.log_cfg["contents"][thread_type]:
+			log_unit["name"] = self.log_cfg["contents"][thread_type]["name"]
+		log_unit["msg"].append(line)
+		self.log_units[self.thread_no] = log_unit
+		self.setValues(line_info)
+		self.injectContent(log_unit["sub_type"], log_unit, line_res["log_time"])
+
 	def processThread(self, line_res, thread_type, line_info):
 		# log_start = len(self.threads[self.thread_no]) - 1
 		line = line_res["msg"]
@@ -426,6 +463,8 @@ class LogParser:
 		# log_end = log_start - 1
 
 		pre_key = ""
+		if self.thread_no in self.log_units and self.key in self.log_units[self.thread_no]:
+			pre_key = self.log_units[self.thread_no][self.key]
 		if thread_type in self.log_cfg["contents"]:
 			content_cfg = self.log_cfg["contents"][thread_type]
 		else:
@@ -437,12 +476,12 @@ class LogParser:
 		elif "sub_type" in content_cfg:
 			if self.thread_no in self.log_units:
 				log_unit = self.log_units[self.thread_no]
-				if "start_time" not in log_unit:
-					log_unit["start_time"] = line_res["log_time"]
-				log_unit["sub_type"] = thread_type
-				log_unit["msg"].append(line)
-				self.setValues(line_info)
-				self.injectContent(log_unit["sub_type"], log_unit,line_res["log_time"])
+				if "name" in content_cfg:
+					if "name" in log_unit and log_unit["name"] == content_cfg["name"]:
+						self.setSubType(line,line_res,line_info,thread_type)
+					else:
+						self.setContent()
+						self.startLogUnit(line_res,line,content_cfg["type"],pre_key,line_info)
 		elif "distributed" in content_cfg:
 			if thread_type not in self.contents:
 				self.contents[thread_type] = []
@@ -454,48 +493,9 @@ class LogParser:
 		if "sub_type" not in content_cfg and "distributed" not in content_cfg:
 			if self.thread_no in self.log_units and self.key in self.log_units[self.thread_no]:
 				pre_key = self.log_units[self.thread_no][self.key]
-				pre_type = self.log_units[self.thread_no]["type"]
 			if self.thread_no in self.log_units and "type" not in self.log_units[self.thread_no]:
 				self.log_units["type"] = "unknown"
-			log_unit = {"thread": self.thread_no, "start_time":line_res["log_time"],"msg":[line]}
-			# self.setCurrentLogUnit(log_unit)
-			# log_unit = self.log_units[self.thread_no]
-			log_unit["type"] = thread_type
-			if len(pre_key) > 0:
-				log_unit["pre_key"] = pre_key
-			log_unit["start_time"] = line_res["log_time"]
-
-			self.log_units[self.thread_no] = log_unit
-			self.setValues(line_info)
-		# if "distributed" not in self.log_cfg["contents"][thread_type] and "sub_type" not in self.log_cfg["contents"][thread_type]:
-		# 	log_unit = {"thread": self.thread_no, "start_time":line_info["log_time"],"msg":[line]}
-		# 	# self.setCurrentLogUnit(log_unit)
-		# 	# log_unit = self.log_units[self.thread_no]
-		# 	log_unit["type"] = thread_type
-		# 	if len(pre_key) > 0:
-		# 		log_unit["pre_key"] = pre_key
-		# 	# if self.current_key:
-		# 	# 	log_unit["context_key"] = self.current_key
-		# 	log_unit["start_time"] = line_res["log_time"]
-		# 	# log_unit["start_time"] = self.test_date + line.split(self.test_date)[1].split(" ")[0]
-		# 	self.setValues(line_info)
-		# 	self.setSession(thread_type, log_unit)
-		# elif "sub_type" in self.log_cfg["contents"][thread_type]:
-		# 	log_unit = self.log_units[self.thread_no]
-		# 	log_unit["sub_type"] = thread_type
-		# 	log_unit["msg"].append(line)
-		# 	if thread_type in self.log_cfg["no_key_contents"]:
-		# 		if log_unit["start_time"] not in self.contents[thread_type]:
-		# 			self.injectByTime(self.contents[thread_type],log_unit,log_time=line_info["log_time"])
-		# 		# self.current_threads[thread_type] = log_unit
-		# else:
-		# 	distributed = self.log_cfg["contents"][thread_type]["distributed"]
-		# 	if distributed in line_info and line_info[distributed] in self.maps[distributed]:
-		# 		key = self.maps[distributed][line_info[distributed]]
-		# 		if thread_type not in self.current_session[key]:
-		# 			self.current_session[key][thread_type] = [line]
-		# 		else:
-		# 			self.current_session[key][thread_type].append(line)
+			self.startLogUnit(line_res,line,thread_type,pre_key,line_info)
 
 	def mergeUnknown(self, log_unit):
 		for key in self.unknown:
@@ -543,7 +543,7 @@ class LogParser:
 				error[self.key] = log_unit[self.key]
 
 
-	def injectByTime(self,group,log_unit,log_time=None):
+	def injectByTime(self,group,log_unit,log_time=None, is_others=False):
 		if not log_time:
 			log_time = log_unit["start_time"]
 		if log_time not in group:
@@ -562,12 +562,19 @@ class LogParser:
 					if index == 0:
 						group["index"].insert(0, log_time)
 		else:
-			if not log_unit["type"] == "session":
-				group[log_time].append(log_unit)
+			if not is_others:
+				if not log_unit["type"] == "session":
+					group[log_time].append(log_unit)
+				else:
+					log_unit["duplicated"] = group[log_time]["id"]
+					print("*** duplicated sesssions :" + str(log_unit))
+					self.insertOthers("duplicated",log_unit)
 			else:
-				log_unit["duplicated"] = group[log_time]["id"]
-				self.insertOthers("duplicated",log_unit)
-				print(log_unit)
+				if not type(group[log_time]) == list:
+					group[log_time] = [group[log_time]]
+				group[log_time].append(log_unit)
+
+
 
 	def setSession(self,thread_type,log_unit):
 		if thread_type == "session" and self.key in log_unit:
@@ -604,7 +611,7 @@ class LogParser:
 			error[self.key] = log_unit[self.key]
 			if "unique_keys" in self.log_cfg:
 				for unique_key in self.log_cfg["unique_keys"]:
-					if unique_key in log_unit:
+					if unique_key in log_unit and not unique_key == "name":
 						error[unique_key] = log_unit[unique_key]
 
 	def setSessionError(self,log_unit,parent):
@@ -627,8 +634,8 @@ class LogParser:
 		# start_time = log_unit["start_time"]
 		if key in self.sessions:
 			sessions = self.sessions[key]
-			if "index" not in sessions:
-				print(sessions)
+			# if "index" not in sessions:
+			# 	print(sessions)
 			session_times = sessions["index"]
 			for i in range(len(session_times) - 1, -1, -1):
 				if session_times[i] <= start_time:
@@ -643,7 +650,7 @@ class LogParser:
 			if map_key in log_unit and log_unit[map_key] in self.contents[content]:
 				group_times = self.contents[content][log_unit[map_key]]["index"]
 				group = self.contents[content][log_unit[map_key]]
-			elif log_unit[self.key] in self.maps[self.key][map_key]:
+			elif self.key in log_unit and log_unit[self.key] in self.maps[self.key][map_key]:
 				map_key_values = self.maps[self.key][map_key][log_unit[self.key]]
 				value_dict = {}
 				if type(map_key_values) == str:
@@ -678,25 +685,28 @@ class LogParser:
 							if len(no_key_items) == 1:
 								return no_key_items[0]
 							else:
-								print(target)
+								# print(target)
 								return
 					else:
 						return target
-				else:
-					print(log_unit)
+				# else:
+				# 	print(log_unit)
 		else:
 			group_times = self.contents[content]["index"]
 		if group_times == None:
-			print(content)
+			print("*** not finding group times for content : " + content)
 		else:
 			group_time = self.getCloseTime(group_times,start_time)
-			if type(group[group_time]) == list:
-				if not len(group[group_time]) == 1:
-					print(group[group_time])
+			if group_time:
+				if type(group[group_time]) == list:
+					if not len(group[group_time]) == 1:
+						print("***unexpected multiple group times :" + str(group[group_time]))
+					else:
+						return group[group_time][0]
 				else:
-					return group[group_time][0]
-			else:
-				return group[group_time]
+					return group[group_time]
+			# else:
+			# 	print(start_time)
 
 	def getCloseTime(self,group_times,start_time):
 		if len(group_times) > 0:
@@ -708,8 +718,6 @@ class LogParser:
 		if key_name in self.refs and key_name not in log_unit:
 			map_key = self.refs[key_name]
 			if  map_key in self.key_maps and map_key in log_unit:
-				if type(log_unit[map_key]) == list:
-					print(log_unit)
 				unit_map_key = log_unit[map_key].strip()
 				if unit_map_key in self.key_maps[map_key]:
 					if type(self.key_maps[map_key][unit_map_key]) == list:
@@ -726,18 +734,8 @@ class LogParser:
 
 	def register(self, log_unit, parent = None,final=False):
 		# log_unit = self.log_units[self.thread_no]
-		if type(log_unit) == str:
-			print(log_unit)
 		thread_type = log_unit["type"]
 		thread_cfg = self.log_cfg["contents"][thread_type]
-
-		if log_unit["thread"] == "qtp1816783372-11465":
-			print(log_unit)
-
-		# if self.key_maps and self.key not in log_unit:
-		# 	refValue = self.getRefValue(self.key, log_unit)
-		# 	if refValue:
-		# 		log_unit[self.key] = refValue
 
 		if "register" in thread_cfg and "msg" in log_unit and len(log_unit["msg"]) > 1:
 			for register in thread_cfg["register"]:
@@ -794,7 +792,7 @@ class LogParser:
 						# 	if refValue:
 						# 		log_unit[map_key] = refValue
 						if map_key not in log_unit and self.key not in log_unit:
-							print(log_unit)
+							# print(log_unit)
 							self.insertOthers("no_key",log_unit)
 						else:
 							if content in self.contents:
@@ -807,7 +805,7 @@ class LogParser:
 										parent[self.key] = log_unit[self.key]
 									elif self.key in log_unit and not parent[self.key] == log_unit[self.key]:
 										self.insertOthers(content,log_unit)
-										break
+										continue
 									if register_cfg["type"] == "list":
 										if name not in parent:
 											parent[name] = []
@@ -832,8 +830,8 @@ class LogParser:
 				self.current_error["stacks"][err_info["name"]] = {}
 			self.current_error["stacks"][err_info["name"]] = {"name": err_info["reason"]}
 			self.current_error_index = self.current_error["stacks"][err_info["name"]]
-			if "thread" not in self.current_error:
-				print(err_info)
+			# if "thread" not in self.current_error:
+			# 	print(err_info)
 			if self.current_error["thread"] in self.errors:
 				self.current_error["stacks"][err_info["name"]]["reason"] = err_info["reason"]
 
@@ -855,8 +853,8 @@ class LogParser:
 
 	def processError(self, line):
 		err_info ={}
-		if line.find("[info ") < 0:
-			print(line)
+		# if line.find("[info ") < 0:
+		# 	print(line)
 		if self.matchLine(line,self.log_cfg["exception"]["matches"],err_info,self.log_cfg["extract"]):
 			if "name" in err_info:
 				self.setupException(err_info)
@@ -949,35 +947,7 @@ class LogParser:
 		# self.register(log_unit)
 
 	def parseLog(self):
-		# for line_no in range(len(self.lines)):
-		# 	line = self.lines[line_no]
-		# 	line_info = {}
-		# 	if line.find("k8s-worker109.qa2.sac: [m[32mINFO  [qtp1252560752-198] 2024-02-26T09:11:45,936 SharedCommonService.java service.SharedCommonService (line 352) >> Initializing portal entry data for [csztfs8m, null]. Job size 6 <<") >= 0:
-		# 		print(line)
 		self.setupThread()
-		# 	# if line.find(self.test_date) < 0 or line.find(self.thread_no) < 0:
-		# 	# 	self.processError(line)
-		# 	# else:
-		# 	# 	log_time = getStartTime(line,self.test_date)
-		# 	# 	line_info["log_time"]=log_time
-		# 	# 	self.getCurrentThread(line, line_info)
-		# 	# 	thread_type = self.getThreadType(line,line_info)
-		# 	# 	if thread_type == "" and self.thread_no not in self.log_units:
-		# 	# 		print(line)
-		# 	# 	self.parseError(line,line_info,thread_type)
-		# 	# 	if not thread_type == "":
-		# 	# 		self.processThread(line, thread_type, line_info)
-		# 	# 	# elif self.thread_no in self.log_units:
-		# 	# 	# 	log_unit = self.log_units[self.thread_no]
-		# 	# 	# 	content = log_unit["type"]
-		# 	# 	# 	if "extract" in self.log_cfg["contents"][content]:
-		# 	# 	# 		for name in self.log_cfg["contents"][content]["extract"]:
-		# 	# 	# 			extract_cfg = self.log_cfg["contents"][content]["extract"][name]
-		# 	# 	# 			extractLine(line,line_info,name,extract_cfg,self.log_cfg["extract"])
-		# 	# 	# 	self.setValues(line_info)
-		# 	# 	# 	self.log_units[self.thread_no]["msg"].append(line)
-		# 	# 	if self.key in line_info:
-		# 	# 		self.current_key = line_info[self.key]
 		for thread_index in self.threads:
 			self.startThread(thread_index)
 			for sub_index in self.threads[thread_index]["index"]:
@@ -994,6 +964,7 @@ class LogParser:
 							self.processThread(line,thread_type,line_info)
 			self.endThread()
 			if self.unknown:
+				self.setUnknown(self.unknown)
 				self.injectContent("unknown", self.unknown)
 				self.unknown = None
 
@@ -1026,7 +997,7 @@ class LogParser:
 						unknowns[unknown_item[self.key]].append(unknown_item)
 		total = 0
 		for key in unknowns:
-			print(key + ":" + str(len(unknowns[key])))
+			# print(key + ":" + str(len(unknowns[key])))
 			total += len(unknowns[key])
 
 
@@ -1071,7 +1042,7 @@ class LogParser:
 
 		if "outputs" in self.log_cfg:
 			for item in self.log_cfg["outputs"]:
-				self.dumpData(item)
+				self.dumpData(item, zip=False)
 
 	def getSessions(self):
 		for key in self.current_session:
@@ -1101,18 +1072,31 @@ class LogParser:
 
 
 		for thread in self.unknown_units:
-			new_thread = thread
+			new_thread = thread.strip(" ():,")
 			if new_thread.find("(") > 0:
-				new_thread = thread.split("(")[0]
-				log_unit["thread"] = new_thread
+				new_thread = thread.split("(")[0].strip(" ")
+			new_thread = new_thread.replace(":","_").replace("%","_")
 			thread_folder = folder + "/" + new_thread
-			if not os.path.exists(thread_folder):
-				os.mkdir(thread_folder)
+			zipfolder = None
+			zip_files = []
 			for log_unit in self.unknown_units[thread]:
+				log_unit["thread"] = new_thread
 				if "error" in log_unit:
-					json_file = open(thread_folder +"/" + str(log_unit["id"]) + ".json","w",encoding="utf-8")
+					if not os.path.exists(thread_folder):
+						os.mkdir(thread_folder)
+					unknown_json = thread_folder +"/" + str(log_unit["id"]) + ".json"
+					json_file = open(unknown_json,"w",encoding="utf-8")
 					json.dump(log_unit,json_file,indent=4)
 					json_file.close()
+					if not zipfolder:
+						zipname = thread_folder + ".zip"
+						zipfolder = zipfile.ZipFile(zipname, "w", zipfile.ZIP_DEFLATED, compresslevel=9)
+					if not unknown_json in zip_files:
+						zipfolder.write(unknown_json)
+						zip_files.append(unknown_json)
+					os.remove(unknown_json)
+			if os.path.exists(thread_folder):
+				os.rmdir(thread_folder)
 
 	def dumpSession(self, session):
 		folder = self.log_file.split(".")[0]
@@ -1120,15 +1104,15 @@ class LogParser:
 			os.mkdir(folder)
 		if "id" not in session:
 			self.setSession("session",session)
-			print(session)
+			# print(session)
 		session_id = session["id"]
 		folder += "/" + str(session_id)
 		if not os.path.exists(folder):
 			os.mkdir(folder)
 
-		if "thread" in session:
-			thread_file = folder + "/session.log"
-			self.dumpThread(session,thread_file)
+		# if "thread" in session:
+		# 	thread_file = folder + "/session.log"
+		# 	self.dumpThread(session,thread_file)
 
 		# if "sub_items" in self.log_cfg:
 		# 	for item in self.log_cfg["sub_items"]:
@@ -1142,19 +1126,14 @@ class LogParser:
 		jsonFile = open(json_file, "w",  encoding="utf-8")
 		json.dump(session,jsonFile,indent=4)
 		jsonFile.close()
+		zipname = folder + ".zip"
+		zipfile.ZipFile(zipname,"w",zipfile.ZIP_DEFLATED,compresslevel=9).write(json_file)
+		os.remove(json_file)
+		os.rmdir(folder)
+
 
 	def dumpThread(self, thread, file_name):
-		# if "msg" in thread:
-		# 	thread.pop("msg")
-		# else:
-		# 	print(thread)
 		threadFile = open(file_name, "w", encoding="utf-8")
-		thread_lines = []
-		# end = len(self.threads[thread["thread"]])
-		# if "end" in thread:
-		# 	end = thread["end"] + 1
-		# for i in range(thread["start"], end):
-		# 	thread_lines.append(self.lines[self.threads[thread["thread"]][i]])
 		threadFile.writelines(thread["msg"])
 		threadFile.close()
 
@@ -1180,8 +1159,12 @@ class LogParser:
 
 	def assignCategory(self, error):
 		category = None
+		if "log_file" not in error:
+			error["log_file"] = self.name
 		if "api" in error:
-		    category  = self.findCategory(error["api"])
+			if type(error["api"]) == list:
+				print("*** unexpected error apis as list :" + str(error["api"]))
+			category  = self.findCategory(error["api"])
 
 
 		if "stacks" in error:
@@ -1203,9 +1186,12 @@ class LogParser:
 				category = self.findCategory(error["filename"])
 		if "name" not in error:
 			if "api" in error:
-				error["name"] = error["api"]
-			else:
-				error["name"] = " ".join(error["msg"].split(")", 1)[1].strip(" \n").split(" ")[:10])
+				category = self.findCategory(error["api"])
+				# error["name"] = error["api"]
+
+			if "msg" not in error:
+				print(error)
+			error["name"] = " ".join(error["msg"].split(")", 1)[1].strip(" \n").split(" ")[:10])
 
 		if error["level"] == "FATAL":
 			category = "fatal"
@@ -1223,8 +1209,8 @@ class LogParser:
 			if error["name"] not in errors:
 				errors[error["name"]] = []
 			errors[error["name"]].append(error)
-		else:
-			print(error)
+		# else:
+		# 	print(error)
 
 	def findCategory(self, target):
 		if "categories" in self.log_cfg:
@@ -1252,7 +1238,7 @@ class LogParser:
 		json.dump(self.stacks,stack_file,indent=4)
 		stack_file.close()
 
-	def dumpData(self,data_name):
+	def dumpData(self,data_name,zip=True):
 		if hasattr(self,data_name):
 			folder = self.log_file.split(".")[0]
 			if not os.path.exists(folder):
@@ -1262,6 +1248,10 @@ class LogParser:
 			json_file = open(jsonFile, "w", encoding="utf-8")
 			json.dump(getattr(self,data_name),json_file,indent=4)
 			json_file.close()
+			if zip:
+				zip_file = folder + "/" + data_name + ".zip"
+				zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED, compresslevel=9).write(jsonFile)
+				os.remove(jsonFile)
 
 
 	def dumpCategories(self):
@@ -1290,8 +1280,8 @@ class LogParser:
 			if "name" in log_unit and "start_time" in log_unit and "error" not in log_unit:
 				try:
 					endTime = datetime.datetime.strptime(log_unit["end_time"], "%Y-%m-%dT%H:%M:%S,%f")
-					if len(log_unit["start_time"]) < 20:
-						print(log_unit)
+					# if len(log_unit["start_time"]) < 20:
+					# 	print(log_unit)
 					startTime = datetime.datetime.strptime(log_unit["start_time"], "%Y-%m-%dT%H:%M:%S,%f")
 					duration = (endTime - startTime).seconds
 					log_unit["duration"] = duration
@@ -1366,8 +1356,6 @@ class LogParser:
 			api["effect_num"] = api["num"]
 
 		for key in self.sessions:
-			if key == 'cucumber-test19@threatmetrix.com':
-				print(key)
 			for start_time in self.sessions[key]["index"]:
 				session = self.sessions[key][start_time]
 				if "sub_items" in self.log_cfg:
@@ -1378,13 +1366,14 @@ class LogParser:
 									print(log_unit)
 								if "name" in log_unit and not "error" in log_unit:
 									if log_unit["name"] not in self.apis:
-										print(log_unit)
+										pass
+										# print(log_unit)
 									else:
 										api= self.apis[log_unit["name"]]
-										if "msg" not in log_unit:
-											print(log_unit)
+										# if "msg" not in log_unit:
+										# 	print(log_unit)
 										if len(log_unit["msg"]) > api["lines"] / api["num"] * 1.2 and "error" not in log_unit and "duration" in log_unit:
-											print(log_unit)
+											# print(log_unit)
 											api["effect_total"]  -= log_unit["duration"]
 											api["effect_num"] -= 1
 								keys = [key_name for key_name in log_unit]
@@ -1397,14 +1386,14 @@ class LogParser:
 					if "name" in session and "error" not in session:
 						if session["name"] in self.apis:
 							api = self.apis[session["name"]]
-							if "msg" not in session:
-								print(session)
+							# if "msg" not in session:
+							# 	print(session)
 							if len(session["msg"]) > api["lines"] / api["num"] * 1.2 and "error" not in session:
-								print(session)
+								# print(session)
 								api["effect_total"] -= session["duration"]
 								api["effect_num"] -= 1
-						else:
-							print(session)
+						# else:
+						# 	print(session)
 					keys = [key_name for key_name in session.keys()]
 					for key_name in keys:
 						if key_name not in ["id", "name", "start_time", "end_time", "error",self.key,"thread"]:
@@ -1414,10 +1403,10 @@ class LogParser:
 			api = self.apis[key]
 			api["effect_avg"] = api["effect_total"]/api["effect_num"]
 
-		sessionFile = folder + "/session.json"
-		json_file = open(sessionFile,"w", encoding="utf-8")
-		json.dump(self.sessions,json_file,indent=4)
-		json_file.close()
+		# sessionFile = folder + "/session.json"
+		# json_file = open(sessionFile,"w", encoding="utf-8")
+		# json.dump(self.sessions,json_file,indent=4)
+		# json_file.close()
 		self.dumpData("apis")
 
 
@@ -1433,10 +1422,9 @@ if __name__ == "__main__":
 	#                                                          "extract":{"user":{"pattern":{"selector":{"User ":1},"splitter":" ","value":"<left>"}}}}}]}}}
 	jsonCfg = open("portal_log.json","r",encoding="utf-8")
 	log_cfg = json.load(jsonCfg,strict=False)
-	cryptLog = LogParser("qa1_portal.log","2024-04-04",log_cfg)
-	maps_file = open("qa1_crypto/maps.json","r",encoding="utf-8")
+	cryptLog = LogParser("qa2_portal.log","2024-04-29",log_cfg)
+	maps_file = open("qa2_crypto/maps.json","r",encoding="utf-8")
 	maps = json.load(maps_file)
-	# # cryptLog.key_maps = maps
 	cryptLog.setKeysMap(maps)
 	cryptLog.parseLog()
 	# cryptLog.dumpData("sessions")

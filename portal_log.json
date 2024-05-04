@@ -77,7 +77,9 @@
                     }
                 }
             ],
-            "sub_type": true
+            "name": "GeneralRestServiceImpl::initializePortalData",
+            "sub_type": true,
+            "type": "worker"
         },
         "logout": {
             "matches": [
@@ -272,7 +274,7 @@
                     "value": "<right>"
                 }
             },
-			"register": {
+            "register": {
                 "session": {
                     "name": "unknown",
                     "type": "list"
@@ -351,25 +353,26 @@
                 },
                 {
                     "extract": {
-                        "user": {
-                            "index": 0,
-                            "pattern": "email",
-                            "value": "<left>@<right>"
-                        },
-					    "name": {
+                        "name": {
                             "index": 0,
                             "pattern": {
                                 "selector": {
-                                    "execution( ": 1
+                                    "execution(": 1
                                 },
                                 "splitter": "("
                             },
                             "value": "<left>"
+                        },
+                        "user": {
+                            "index": 0,
+                            "pattern": "email",
+                            "value": "<left>@<right>"
                         }
                     },
                     "include": {
                         "must": [
-                            "featurepermission.FeaturePermissionAdvice"
+                            "featurepermission.FeaturePermissionAdvice",
+							"checking permissions for user"
                         ]
                     },
                     "line_no": 2
@@ -403,7 +406,7 @@
                 },
                 "include": {
                     "must": [
-                        "31mERROR "						
+                        "31mERROR "
                     ]
                 }
             },
@@ -423,12 +426,11 @@
                     }
                 },
                 "include": {
-                    "must": [                        
-						"33mWARN "
+                    "must": [
+                        "33mWARN "
                     ]
                 }
             }
-			
         ]
     },
     "exception": {
@@ -490,10 +492,10 @@
                 "extract": {
                     "message": {
                         "pattern": {
-							"selector": {
-								":": "1+"
-							},
-							"splitter":"\n"
+                            "selector": {
+                                ":": "1+"
+                            },
+                            "splitter": "\n"
                         },
                         "value": "<left>"
                     }
@@ -521,27 +523,29 @@
                 "fcc_",
                 "FRAUD_",
                 "fraud_",
+				"auth_",
+				"registry-",
                 ":",
                 "/",
                 "\"",
                 ")"
             ],
             "processor": {
-                "left": "auth_#:{",
+                "left": "#:{",
                 "right": "_}."
             },
             "right": [
                 " ",
                 ",",
                 "]",
-				"{",
+                "{",
                 ")",
                 "'",
                 "\"",
                 "\n",
                 ":",
                 "(",
-				"-",
+                "-",
                 "/"
             ],
             "splitter": "@",
@@ -609,12 +613,18 @@
     "sub_items": [
         "worker",
         "job",
-		"unknown"
+        "unknown"
     ],
     "thread": {
-		"main":"main",
         "left": " [",
+        "main": "main",
         "right": "] "
     },
-	"unique_keys":["user","org","user_request_id","org_request_id"]
+    "unique_keys": [
+        "user",
+        "org",
+        "user_request_id",
+        "org_request_id",
+		"name"
+    ]
 }

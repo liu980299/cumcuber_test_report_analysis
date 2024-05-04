@@ -106,7 +106,7 @@
                     "reason": {
                         "index": 0,
                         "pattern": "exception",
-                        "value": "<right>"
+                        "value": "<left>:<right>"
                     }
                 },
                 "include": {
