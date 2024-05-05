@@ -1189,7 +1189,9 @@ if __name__ == "__main__":
             if log_analysis_job.find(server_url) >= 0:
                 server = jenkins_servers[server_url]
                 job_name = log_analysis_job.split("/")[-1]
-                log_analysis_build = server.build_job(job_name,parameters={"build":args.build},token=job_name+"_token")
+                job_info = server.get_job_info(job_name)
+                server.build_job(job_name,parameters={"build":args.build},token=job_name+"_token")
+                log_analysis_build = job_info["nextBuildNumber"]
                 res["configure"]["log_analysis"]["build"] = log_analysis_build
 
     if len(res) > 0:
