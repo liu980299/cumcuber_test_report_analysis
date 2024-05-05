@@ -32,6 +32,8 @@ parser.add_argument("--context",help="context analysis argument <start flag>:<en
 parser.add_argument("--skips", help="skipped java file, if failuare in skip java file, the previous step would be checked ", required=True)
 parser.add_argument("--confluence",help="conflence source and confidential",required=False)
 parser.add_argument("--jira", help="jira configuration",required=False)
+parser.add_argument("--log_analysis", help="jenkins job for log analysis",required=False)
+parser.add_argument("--build", help="jenkins job build number for test analysis",required=False)
 
 
 args = parser.parse_args()
@@ -894,6 +896,7 @@ if __name__ == "__main__":
     else:
         context_flags = None
     server_dict = dict(zip(servers,passwords))
+    jenkins_servers = {}
     performances = {}
     if args.performance:
         performance = args.performance.split(":")
@@ -921,6 +924,7 @@ if __name__ == "__main__":
     summary_jobs =[]
     for server_url in server_dict:
         server= jenkins.Jenkins(server_url, args.username, password=server_dict[server_url])
+        jenkins_servers[server_url] = server
         all_jobs = server.get_jobs()
         jobs=[]
 
@@ -1176,6 +1180,18 @@ if __name__ == "__main__":
         json.dump(java_analysis,open("results.json","w"),indent=4)
 
     write_container(res)
+
+    if args.log_analysis:
+        res["configure"]["log_analysis"] = {}
+        res["configure"]["log_analysis"]["job"] = args.log_analysis
+        log_analysis_job = args.log_analysis
+        for server_url in jenkins_servers:
+            if log_analysis_job.find(server_url) >= 0:
+                server = jenkins_servers[server_url]
+                job_name = log_analysis_job.split("/")[-1]
+                log_analysis_build = server.build_job(job_name,parameters={"build":args.build},token=job_name+"_token")
+                res["configure"]["log_analysis"]["build"] = log_analysis_build
+
     if len(res) > 0:
         merge_summary(res,summary_jobs)
         json.dump(res,open("analysis.json","w"),indent=4)
@@ -1272,6 +1288,7 @@ if __name__ == "__main__":
     template = open("index.template","r").read()
     html = Template(template).render(Context(context))
     open("index.html","w").write(html)
+
 
 
 
