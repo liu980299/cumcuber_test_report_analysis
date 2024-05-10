@@ -95,7 +95,7 @@ class LogParser:
 								thread_res["id"] = items[content_cfg["id"]]
 							break
 				else:
-					thread_no = thread_no.split(",")[0]
+					thread_no = thread_no.split(",")[0].split("|")[0].strip()
 				log_time = getStartTime(line, self.test_date)
 				line_info = {"log_time":log_time,"msg":line,"thread":thread_no}
 				if len(thread_res) > 0:
