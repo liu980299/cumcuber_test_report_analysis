@@ -160,93 +160,93 @@ def merge_summary(res,summary_jobs):
                     env_res["summary"].append(summary_item)
 
 
-def analysis_context(context_res,context_flags,scenario,scenario_res,conflence_res):
+def analysis_context(context_res,context_flags,scenario,scenario_res,confluence_res):
     scenario_res = {"name": scenario["scenario"], "data": scenario_res}
     contexts=[]
-    start_list = context_flags["start_list"]
-    end_dict = context_flags["end"]
-    page_levels = context_flags["page_levels"]
-    steps = scenario["steps"]
-    for step in steps:
-        if step["result"] == "failed":
-            find_result = False
-            for start_flag in start_list:
-                patterns = start_flag[1]
-                for pattern in patterns:
-                    if step["name"].find(pattern) >= 0:
-                        start_context = context_res
-                        for name in start_flag[0]:
-                            if name not in start_context:
-                                start_context[name] = {}
-                            start_context = start_context[name]
-                        if "scenarios" not in start_context:
-                            start_context["scenarios"] = []
-                        start_context["scenarios"].append(scenario_res)
-                        find_result = True
-                        break
-                if find_result:
-                    break
-            if not find_result:
-                for end_flag in end_dict:
-                    if step["name"].find(end_dict[end_flag]) >=0:
-                        if end_flag not in context_res:
-                            context_res[end_flag] = {}
-                            context_res[end_flag]["scenarios"] = []
-                        context_res[end_flag]["scenarios"].append(scenario_res)
-                        find_result = True
-                        break
-            if not find_result:
-                level = 0
-                for page_level in page_levels:
-                    for pattern in page_level:
-                        m = re.search(pattern["pattern"], step["name"])
-                        if m:
-                            page = m.group(1).strip()
-                            if "pages" in pattern and (len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
-                                continue
-                            if ("include" in pattern and page in pattern["include"]) or \
-                                    ("exclude" in pattern and page not in pattern["exclude"]) or ("include" not in pattern and "exclude" not in pattern):
-                                contexts = contexts[:level]
-                                contexts.append(page)
-                                break
-                    level += 1
-                    if find_result:
-                        break
-            if not find_result:
-                context_levels = context_res
-                if len(contexts) == 0:
-                    contexts = ["Others"]
-                for context_name in contexts:
-                    if context_name not in context_levels:
-                        context_levels[context_name] = {}
-                    context_levels = context_levels[context_name]
-                if "scenarios" not in context_levels:
-                    context_levels["scenarios"] = []
-                context_levels["scenarios"].append(scenario_res)
-            break
-        else:
-            for start_flag in start_list:
-                patterns = start_flag[1]
-                for pattern in patterns:
-                    if step["name"].find(pattern) >= 0:
-                        contexts = start_flag[2]
-                        break
-            for end_flag in end_dict:
-                if step["name"].find(end_dict[end_flag]) >=0:
-                    contexts = []
-                    break
-            level = 0
-            for page_level in page_levels:
-                for pattern in page_level:
-                    m = re.search(pattern["pattern"],step["name"])
-                    if m:
-                        page = m.group(1).strip()
-                        if ("include" in pattern and page in pattern["include"]) or \
-                                ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
-                            contexts = contexts[:level]
-                            contexts.append(page)
-                            break
-                level += 1
+    # start_list = context_flags["start_list"]
+    # end_dict = context_flags["end"]
+    # page_levels = context_flags["page_levels"]
+    # steps = scenario["steps"]
+    # for step in steps:
+    #     if step["result"] == "failed":
+    #         find_result = False
+    #         for start_flag in start_list:
+    #             patterns = start_flag[1]
+    #             for pattern in patterns:
+    #                 if step["name"].find(pattern) >= 0:
+    #                     start_context = context_res
+    #                     for name in start_flag[0]:
+    #                         if name not in start_context:
+    #                             start_context[name] = {}
+    #                         start_context = start_context[name]
+    #                     if "scenarios" not in start_context:
+    #                         start_context["scenarios"] = []
+    #                     start_context["scenarios"].append(scenario_res)
+    #                     find_result = True
+    #                     break
+    #             if find_result:
+    #                 break
+    #         if not find_result:
+    #             for end_flag in end_dict:
+    #                 if step["name"].find(end_dict[end_flag]) >=0:
+    #                     if end_flag not in context_res:
+    #                         context_res[end_flag] = {}
+    #                         context_res[end_flag]["scenarios"] = []
+    #                     context_res[end_flag]["scenarios"].append(scenario_res)
+    #                     find_result = True
+    #                     break
+    #         if not find_result:
+    #             level = 0
+    #             for page_level in page_levels:
+    #                 for pattern in page_level:
+    #                     m = re.search(pattern["pattern"], step["name"])
+    #                     if m:
+    #                         page = m.group(1).strip()
+    #                         if "pages" in pattern and (len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
+    #                             continue
+    #                         if ("include" in pattern and page in pattern["include"]) or \
+    #                                 ("exclude" in pattern and page not in pattern["exclude"]) or ("include" not in pattern and "exclude" not in pattern):
+    #                             contexts = contexts[:level]
+    #                             contexts.append(page)
+    #                             break
+    #                 level += 1
+    #                 if find_result:
+    #                     break
+    #         if not find_result:
+    #             context_levels = context_res
+    #             if len(contexts) == 0:
+    #                 contexts = ["Others"]
+    #             for context_name in contexts:
+    #                 if context_name not in context_levels:
+    #                     context_levels[context_name] = {}
+    #                 context_levels = context_levels[context_name]
+    #             if "scenarios" not in context_levels:
+    #                 context_levels["scenarios"] = []
+    #             context_levels["scenarios"].append(scenario_res)
+    #         break
+    #     else:
+    #         for start_flag in start_list:
+    #             patterns = start_flag[1]
+    #             for pattern in patterns:
+    #                 if step["name"].find(pattern) >= 0:
+    #                     contexts = start_flag[2]
+    #                     break
+    #         for end_flag in end_dict:
+    #             if step["name"].find(end_dict[end_flag]) >=0:
+    #                 contexts = []
+    #                 break
+    #         level = 0
+    #         for page_level in page_levels:
+    #             for pattern in page_level:
+    #                 m = re.search(pattern["pattern"],step["name"])
+    #                 if m:
+    #                     page = m.group(1).strip()
+    #                     if ("include" in pattern and page in pattern["include"]) or \
+    #                             ("exclude" in pattern and page not in pattern["exclude"]) or len(pattern) == 1:
+    #                         contexts = contexts[:level]
+    #                         contexts.append(page)
+    #                         break
+    #             level += 1
     scenario_res["data"]["contexts"] = contexts
     if len(contexts) > 0:
         page = contexts[-1].lower()
@@ -529,32 +529,6 @@ def get_dailyresult(confluence):
                                 condition_list.append(condition_dict)
                             record["conditions"] = condition_list
 
-                        # while jira_str.find('JIRA')>=0 or jira_str.find('https://')>=0:
-                        #     jira_start =jira_str.find('JIRA')
-                        #     if jira_start < 0:
-                        #         jira_start = jira_str.find('https://')
-                        #         if jira_start == 0:
-                        #             jiras = jira_str.split("https://")
-                        #             if len(jiras) > 2:
-                        #                 jira_str = jiras[1].rsplit("/",1) + "https://".join(jiras[2:])
-                        #             else:
-                        #                 jira_str = jiras[1].rsplit("/", 1)[1]
-                        #     if record["JIRA"] == "" and jira_start > 10:
-                        #         record["JIRA"] = jira_str[:jira_start]
-                        #     else:
-                        #         record["JIRA"] += "," + jira_str[:jira_start]
-                        #     m = re.search("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
-                        #                   jira_str)
-                        #     if m:
-                        #         uuid=m.group(1)
-                        #         jira_start = jira_str.find(uuid)
-                        #         jira_str = jira_str[jira_start + 36:]
-                        #     else:
-                        #         jira_str = jira_str[jira_start:]
-                        # if record["JIRA"] == "":
-                        #     record["JIRA"] = jira_str.split(" ")[0]
-                        # else:
-                        #     record["JIRA"]  += "," + jira_str.split(" ")[0]
                         for jira_id in record["JIRA"].split(","):
                             if len(jira_id) > 0:
                                 issue = jira.issue(jira_id)
@@ -566,46 +540,41 @@ def get_dailyresult(confluence):
     return res
 
 def getContext(step,context_flags,previous_context):
-    start_list = context_flags["start_list"]
-    end_dict = context_flags["end"]
+    static_list = context_flags["static_list"]
     page_levels = context_flags["page_levels"]
     contexts = previous_context.split(">")
     if step["result"] == "failed":
-        for start_flag in start_list:
-            patterns = start_flag[1]
+        for static_flag in static_list:
+            patterns = static_flag[1]
             for pattern in patterns:
                 if step["name"].find(pattern) >= 0:
-                    for name in start_flag[0]:
-                        return name
-            for end_flag in end_dict:
-                if step["name"].find(end_dict[end_flag]) >= 0:
-                    if end_flag not in context_res:
-                        return end_flag
-            level = 0
-            for page_level in page_levels:
-                for pattern in page_level:
-                    m = re.search(pattern["pattern"], step["name"])
-                    if m:
-                        page = m.group(1).strip()
-                        if "pages" in pattern and (
-                                len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
-                            continue
-                        if ("include" in pattern and page in pattern["include"]) or \
-                                ("exclude" in pattern and page not in pattern["exclude"]) or (
-                                "include" not in pattern and "exclude" not in pattern):
-                            contexts = contexts[:level]
-                            contexts.append(page)
-                            return ">".join(contexts)
-                level += 1
+                    for name in static_flag[0]:
+                        if name == "Navigate":
+                            return previous_context
+                    return ">".join(static_flag[0])
+        level = 0
+        for page_level in page_levels:
+            for pattern in page_level:
+                m = re.search(pattern["pattern"], step["name"])
+                if m:
+                    page = m.group(1).strip()
+                    if "pages" in pattern and (
+                            len(contexts) == 0 or contexts[level - 1] not in pattern["pagas"]):
+                        continue
+                    if ("include" in pattern and page in pattern["include"]) or \
+                            ("exclude" in pattern and page not in pattern["exclude"]) or (
+                            "include" not in pattern and "exclude" not in pattern):
+                        contexts = contexts[:level]
+                        contexts.append(page)
+                        return ">".join(contexts)
+            level += 1
     else:
-        for start_flag in start_list:
-            patterns = start_flag[1]
+        for static_flag in static_list:
+            patterns = static_flag[1]
             for pattern in patterns:
                 if step["name"].find(pattern) >= 0:
-                    contexts = ">".join(start_flag[2])
-        for end_flag in end_dict:
-            if step["name"].find(end_dict[end_flag]) >= 0:
-                return previous_context
+                    contexts = ">".join(static_flag[2])
+                    return contexts
         level = 0
         for page_level in page_levels:
             for pattern in page_level:
@@ -656,17 +625,6 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
                     setTestUser(console_logs[container][scenario_name],scenario_res)
                 else:
                     for item in console_logs[container][scenario_name]:
-                        # assigned = True
-                        # for user_name in item:
-                        #     if item[user_name]["start_time"] < scenario_res["start_time"] or item[user_name]["start_time"] > scenario_res["end_time"]:
-                        #         assigned = False
-                        #         break
-                        #     if "end_time" not in item[user_name] or item[user_name]["end_time"] > scenario_res["end_time"]:
-                        #         item[user_name]["end_time"] = scenario_res["end_time"]
-                        # if assigned:
-                        #     scenario_res["test_users"] = item
-                        #     break
-
                         if "assigned" not in item:
                             setTestUser(item,scenario_res)
                             # scenario_res["test_users"] = item
@@ -676,7 +634,6 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
         if "test_data_users" not in scenario_res:
             scenario_res["test_data_users"] = []
         step_starttime = datetime.datetime.strptime(scenario["start_time"],"%Y-%m-%dT%H:%M:%S.%fZ")
-        context_steps=[]
         context_res={"name":"Login","start_time":scenario_res["start_time"],"steps":[]}
         previous_context = "Login"
         for step in scenario["steps"]:
@@ -710,8 +667,6 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
             if "duration" not in step:
                 if len(scenario["steps"]) == 1:
                     step["duration"] = scenario["Test Runtime"]
-                # else:
-                #     print(step)
 
             m = pattern.search(step["duration"])
             if m:
@@ -739,22 +694,19 @@ def timeline_analysis(scenario,timeline_res,context_flags,console_logs):
                     break
                 index += 1
             container_res["scenarios"].insert(index,scenario_res)
+        return context_res["name"]
+
 
 def parse_context(context_str):
     context_flags = context_str.split(":")
-    start_flags = context_flags[0].split("#")
+    static_flags = context_flags[0].split("#")
     res ={}
-    start_list = []
-    for start_flag in start_flags:
-        name,patterns,default_page = start_flag.split("|")
-        start_list.append([name.split(","),patterns.split(","),default_page.split(",")])
-    end_flags = context_flags[1].split(",")
-    end_dict = {}
-    for end_flag in end_flags:
-        name,pattern = end_flag.split("|")
-        end_dict[name] = pattern
+    static_list = []
+    for static_flag in static_flags:
+        name,patterns,default_page = static_flag.split("|")
+        static_list.append([name.split(","),patterns.split(","),default_page.split(",")])
 
-    page_flags= context_flags[2].split("|")
+    page_flags= context_flags[1].split("|")
     page_levels = []
     for page_flag in page_flags:
         page_items =[]
@@ -763,7 +715,6 @@ def parse_context(context_str):
             locked_pages = None
             if page_item_flag.find("@") > 0:
                 page_item_flag,locked_pages=page_item_flag.split("@")
-                locked_pages = [locked_page.lower() for locked_page in locked_pages.split("#")]
                 locked_pages = [locked_page.lower() for locked_page in locked_pages.split("#")]
             if page_item_flag.find("++") > 0:
                 pattern,include=page_item_flag.split("++")
@@ -779,8 +730,7 @@ def parse_context(context_str):
                 page_item["pages"] = locked_pages
             page_items.append(page_item)
         page_levels.append(page_items)
-    res["start_list"] = start_list
-    res["end"] = end_dict
+    res["static_list"] = static_list
     res["page_levels"] = page_levels
     return res
 
@@ -1089,8 +1039,9 @@ if __name__ == "__main__":
                     features_res = env_res["jobs"][job_name]
                     for scenario in build_res["scenarioes"]:
                         scenario["job_name"] = job_name
+                        context_str = None
                         if job_name in summary_jobs:
-                            timeline_analysis(scenario,timeline_res,context_flags,console_logs[job_name])
+                            context_str = timeline_analysis(scenario,timeline_res,context_flags,console_logs[job_name])
 
                         if scenario["result"] == "failed":
                             if len(steps_dict) > 0:
@@ -1150,8 +1101,17 @@ if __name__ == "__main__":
                                         scenario_res[scenario_name] = scenario_item
                                         break
 
-                            if context_flags:
-                                analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]],confluence_res)
+                            if context_flags and context_str:
+                                context_levels = context_res
+                                for context_name in context_str.split(">"):
+                                    if context_name not in context_levels:
+                                        context_levels[context_name] = {}
+                                    context_levels = context_levels[context_name]
+                                if "scenarios" not in context_levels:
+                                    context_levels["scenarios"] = []
+                                context_levels["scenarios"].append({"name":scenario["scenario"],"data":scenario_res[scenario["scenario"]]})
+
+                                # analysis_context(context_res,context_flags,scenario,scenario_res[scenario["scenario"]],confluence_res)
                             if "url" not in feature_res:
                                 feature_res["url"] = scenario["feature_url"]
                         else:
