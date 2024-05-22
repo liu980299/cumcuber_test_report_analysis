@@ -1009,7 +1009,7 @@ class LogParser:
 		for content in self.log_cfg["no_key_contents"]:
 			self.processContent(content)
 
-		contents = [content for content in self.log_cfg["contents"] if "distributed" in self.log_cfg["contents"][content]]
+		contents = [content for content in self.log_cfg["contents"] if "distributed" in self.log_cfg["contents"][content] and content in self.contents]
 		for content in contents:
 			self.distribute(content)
 
