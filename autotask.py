@@ -258,6 +258,8 @@ if __name__ == "__main__":
                                     new_tr += "</tr>"
                                     tr_new = BeautifulSoup(new_tr, "html.parser").find("tr")
                                     tr.replace_with(tr_new)
+                                    if last_tr == tr:
+                                        last_tr = tr_new
                                     a_jira["scenario_text"] = scenario_text
                                     issue=jira.issue(a_jira["id"])
                                     a_jira["summary"] = issue.get_field("summary")
