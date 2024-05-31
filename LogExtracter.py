@@ -57,8 +57,12 @@ class ServerLog:
                 self.sshclient.execute_command(zipCommand)
                 self.sshclient.get_file( self.zip_file)
                 zipfile.ZipFile(self.zip_file, "r").extract(self.log_file)
+                setattr(self,self.log_file,True)
+                return True
             except Exception as e:
                 print("Not found "+ self.log_file)
+                setattr(self, self.log_file, False)
+                return False
 
     def __del__(self):
         self.sshclient.close_connection()
@@ -452,6 +456,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_time", help="start time date and hours, format is YYYY-MM-DDTHH ",required=False)
     parser.add_argument("--end_time",help="end time date and hours, format is YYYY-MM-DDTHH",required=False)
     parser.add_argument("--log_map", help="server,logfile pattern,grep keyword group, delimiter as |",required=True)
+    parser.add_argument("--confluence", help="confluence server, delimiter as |", required=True)
     parser.add_argument("--teams", help="teams webhook connectors", required=True)
 
     args = parser.parse_args()
@@ -468,7 +473,7 @@ if __name__ == "__main__":
         job = server.get_job_info(job_name)
         analysis_json_url = job["lastSuccessfulBuild"]["url"] + data_url
         # for build in job["builds"]:
-        #     if build["number"] == 754:
+        #     if build["number"] == 794:
         #         analysis_json_url = build["url"] + data_url
         response = server.jenkins_request(requests.Request('GET', analysis_json_url))
         data = json.loads(response.text)
@@ -508,12 +513,16 @@ if __name__ == "__main__":
     if args.jenkins and args.data_url:
         for log_env in log_envs:
             server_log.set_duration(log_env["start_time"],log_env["end_time"])
+            if log_env["env"] not in log_dict:
+                log_dict[log_env["env"]] = {}
+
+            log_env_res = log_dict[log_env["env"]]
 
             for log_map in log_maps:
                 log_name, log_pattern= log_map.split(":")
                 log_name=log_name.replace("<env>",log_env["env"])
                 log_pattern = log_pattern.replace("<env>",log_env["env"])
-                server_log.extract_log(log_name,log_pattern)
+                log_env_res[log_name] = server_log.extract_log(log_name,log_pattern)
     else:
         server_log.set_duration(args.start_time,args.end_time)
         for log_map in log_maps:
@@ -529,26 +538,28 @@ if __name__ == "__main__":
             jsonCfg = open(log_item["name"] + ".json", "r", encoding="utf-8")
             log_cfg = json.load(jsonCfg, strict=False)
             log_file_name = log_item["file"].replace("<env>",env_name)
-            print("Processing " + log_file_name + "...")
-            logParser = LogParser(log_file_name,test_date,log_cfg)
-            if "map_keys" in log_item:
-                map_file_name = log_item["map_keys"].replace("<env>",env_name)
-                maps_file = open(map_file_name, "r", encoding="utf-8")
-                maps = json.load(maps_file)
-                logParser.setKeysMap(maps)
+            if hasattr(server_log,log_file_name) and getattr(server_log,log_file_name):
+                print("Processing " + log_file_name + "...")
+                logParser = LogParser(log_file_name,test_date,log_cfg)
+                if "map_keys" in log_item:
+                    map_file_name = log_item["map_keys"].replace("<env>",env_name)
+                    if os.path.exists("./" + map_file_name):
+                        maps_file = open(map_file_name, "r", encoding="utf-8")
+                        maps = json.load(maps_file)
+                        logParser.setKeysMap(maps)
 
-            logParser.parseLog()
+                logParser.parseLog()
 
-            if not "main" in log_item or not log_item["main"]:
-                log_env["logs"].append(logParser)
-            else:
-                log_env["main"] = logParser
-                log_env["main_log"] = logParser.name
-                mergeTests(log_env, logParser, log_env["users"],log_item)
-                # mergeTests(log_env["tests"], logParser, log_item)
+                if not "main" in log_item or not log_item["main"]:
+                    log_env["logs"].append(logParser)
+                else:
+                    log_env["main"] = logParser
+                    log_env["main_log"] = logParser.name
+                    mergeTests(log_env, logParser, log_env["users"],log_item)
+                    # mergeTests(log_env["tests"], logParser, log_item)
 
-            if "fatal" in logParser.categories:
-                log_env["fatal"][log_item["name"]] = logParser.categories["fatal"]
+                if "fatal" in logParser.categories:
+                    log_env["fatal"][log_item["name"]] = logParser.categories["fatal"]
 
         mainLog = log_env.pop("main")
 
@@ -662,45 +673,54 @@ if __name__ == "__main__":
                     total_exception += log_exception_num
                     # msg_texts[log_file + "(" + str(log_exception_num) + "/" + str(log_error_num) + ")"] = log_error_texts
                     msg_texts = log_error_texts
-                    team_text = "<H2>Total : " + str(log_error_num) + " errors and total : " + str(log_exception_num) + " exceptions found from " + log_env["start_time"] \
-                        + " to " + log_env["end_time"]
-                    if log_file.find("portal") >=0:
-                        team_text += " and detected "+ str(log_env["matched"]) +" of matchable " + str(log_env["matchable"]) + " from total " + str(log_env["total"]) +" scenarios, among them matched failed scenarios " + str(log_env["match_failed"])
-                    team_text += "</H2>"
-                    times = 10
-                    if total_lines > 70:
-                        line_times  = [lines for lines in error_lines]
-                        line_times.sort()
-                        lines_total = total_lines
-                        for lines_num in line_times:
-                            lines_total -= error_lines[lines_num]
-                            if lines_total <= 70:
-                                times = lines_num
-                                break
-                        team_text += "\n\n total error message is too big. Only the errors happened more than " + str(times) + " times would be listed"
-                    team_text += "<hr/>\n\n"
-                    teams[env].text(team_text)
-                    for category_text in log_error_texts:
-                        section = pymsteams.cardsection()
-                        # section.title("## Log : " + log_text)
-                        section_text = "<ul>"
-                        # for category_text in msg_texts[log_text]:
-                        if len(log_error_texts) > 1:
-                            section_text += "<h3>" + category_text + "</h3>"
-                        #     section_text += "\n\n<ul>"
-                        for err_text in msg_texts[category_text]:
-                            if total_lines <= 70:
-                                section_text += "<li>" + err_text + "</li>"
-                            elif msg_texts[category_text][err_text] > times:
-                                section_text += "<li>" + err_text + "</li>"
-                        section_text += "</ul>"
-                        # section_text += "</ul>"
-                        section.text(section_text)
-                        teams[env].addSection(section)
+                    if not hasattr(server_log, log_file) or not getattr(server_log, log_file):
+                        team_text = "<H2 style='color:red;'> No " + log_file + " log found from " + log_env["start_time"] \
+                                    + " to " + log_env["end_time"] +"! </H2>"
+                        print(team_text)
+                        teams[env].text(team_text)
+                    else:
+                        team_text = "<H2>Total : " + str(log_error_num) + " errors and total : " + str(
+                            log_exception_num) + " exceptions found from " + log_env["start_time"] \
+                                    + " to " + log_env["end_time"]
+
+                        if log_file.find("portal") >=0:
+                            team_text += " and detected "+ str(log_env["matched"]) +" of matchable " + str(log_env["matchable"]) + " from total " + str(log_env["total"]) +" scenarios, among them matched failed scenarios " + str(log_env["match_failed"])
+                        team_text += "</H2>"
+                        times = 10
+                        if total_lines > 70:
+                            line_times  = [lines for lines in error_lines]
+                            line_times.sort()
+                            lines_total = total_lines
+                            for lines_num in line_times:
+                                lines_total -= error_lines[lines_num]
+                                if lines_total <= 70:
+                                    times = lines_num
+                                    break
+                            team_text += "\n\n total error message is too big. Only the errors happened more than " + str(times) + " times would be listed"
+                        team_text += "<hr/>\n\n"
+                        teams[env].text(team_text)
+                        for category_text in log_error_texts:
+                            section = pymsteams.cardsection()
+                            # section.title("## Log : " + log_text)
+                            section_text = "<ul>"
+                            # for category_text in msg_texts[log_text]:
+                            if len(log_error_texts) > 1:
+                                section_text += "<h3>" + category_text + "</h3>"
+                            #     section_text += "\n\n<ul>"
+                            for err_text in msg_texts[category_text]:
+                                if total_lines <= 70:
+                                    section_text += "<li>" + err_text + "</li>"
+                                elif msg_texts[category_text][err_text] > times:
+                                    section_text += "<li>" + err_text + "</li>"
+                            section_text += "</ul>"
+                            # section_text += "</ul>"
+                            section.text(section_text)
+                            teams[env].addSection(section)
                     try:
                         teams[env].send()
                         teams[env].payload.clear()
                     except Exception as e:
+                        print(e)
                         messages[env] = teams[env].payload
 
 
