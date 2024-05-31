@@ -43,7 +43,7 @@ class LogParser:
 		self.sort_by_thread  = False
 		self.machine = None
 		self.key_maps = None
-		self.refs = None
+		self.refs = {}
 		self.unknown_units = {}
 		if "contents" in self.log_cfg["thread"] and "id" in self.log_cfg["thread"]["contents"]["session"]:
 			self.sort_by_thread = True
@@ -927,20 +927,21 @@ class LogParser:
 
 	def distribute(self,content):
 		distributed = self.log_cfg["contents"][content]["distributed"]
-		for item in self.contents[content]:
-			if not distributed == self.key:
-				key = self.maps[distributed][item[distributed]]
-			else:
-				key = item[self.key]
-			session =  self.getSession(key,item["log_time"])
-			if session:
-				if content not in session:
-					session[content] = [item]
+		if content in self.contents:
+			for item in self.contents[content]:
+				if not distributed == self.key:
+					key = self.maps[distributed][item[distributed]]
 				else:
-					session[content].append(item)
-			else:
-				session = self.getSession(key, item["log_time"])
-				self.insertOthers(content,item)
+					key = item[self.key]
+				session =  self.getSession(key,item["log_time"])
+				if session:
+					if content not in session:
+						session[content] = [item]
+					else:
+						session[content].append(item)
+				else:
+					session = self.getSession(key, item["log_time"])
+					self.insertOthers(content,item)
 
 
 		# content = log_unit["type"]
@@ -1009,7 +1010,7 @@ class LogParser:
 		for content in self.log_cfg["no_key_contents"]:
 			self.processContent(content)
 
-		contents = [content for content in self.log_cfg["contents"] if "distributed" in self.log_cfg["contents"][content] and content in self.contents]
+		contents = [content for content in self.log_cfg["contents"] if "distributed" in self.log_cfg["contents"][content]]
 		for content in contents:
 			self.distribute(content)
 
