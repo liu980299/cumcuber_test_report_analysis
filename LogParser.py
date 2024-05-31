@@ -673,7 +673,7 @@ class LogParser:
 						else:
 							no_key_items = []
 							for item in target:
-								if self.refs[self.key] in item:
+								if self.key in self.refs and self.refs[self.key] in item:
 									refValue = self.getRefValue(self.key,item)
 									if refValue:
 										item[self.key] = refValue
