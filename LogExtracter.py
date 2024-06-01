@@ -673,7 +673,8 @@ if __name__ == "__main__":
                     total_exception += log_exception_num
                     # msg_texts[log_file + "(" + str(log_exception_num) + "/" + str(log_error_num) + ")"] = log_error_texts
                     msg_texts = log_error_texts
-                    if not hasattr(server_log, log_file) or not getattr(server_log, log_file):
+                    log_file_name = log_file + ".log"
+                    if hasattr(server_log, log_file_name) and not getattr(server_log, log_file_name):
                         team_text = "<H2 style='color:red;'> No " + log_file + " log found from " + log_env["start_time"] \
                                     + " to " + log_env["end_time"] +"! </H2>"
                         print(team_text)
