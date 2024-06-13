@@ -33,6 +33,7 @@ parser.add_argument("--skips", help="skipped java file, if failuare in skip java
 parser.add_argument("--confluence",help="conflence source and confidential",required=False)
 parser.add_argument("--jira", help="jira configuration",required=False)
 parser.add_argument("--log_analysis", help="jenkins job for log analysis",required=False)
+parser.add_argument("--reports", help="original jenkins job report name",required=False)
 parser.add_argument("--build", help="jenkins job build number for test analysis",required=False)
 
 
@@ -700,6 +701,12 @@ if __name__ == "__main__":
     confluence_res = None
     jira_url = ""
     jira_cfgs = {}
+    report_map = args.reports
+    report_dict = {}
+    for report_items in report_map.split("|"):
+        report_name,job_list = report_items.split(":")
+        for job_name in job_list.split(","):
+            report_dict[job_name] = report_name
     if args.jira:
         jira_parameters = args.jira.split("|")
         jira_cfgs["teams"] = jira_parameters[0].split(",")
@@ -1074,7 +1081,10 @@ if __name__ == "__main__":
                             job_name = job
                             if job in res[portal_url]["versions"] and not res[portal_url]["versions"][job] == res[portal_url]["version"]:
                                 job_name = job + "(" + res[portal_url]["versions"][job] + ")"
-                            section.title("# **JOB : [" + job_name +"]("+urls[job] +"Cluecumber_20Test_20Report/)**")
+                            url_job_report = urls[job]
+                            if job in report_dict:
+                                url_job_report += env_res["builds"][job]["workable"] + "/" + report_dict[job]
+                            section.title("# **JOB : [" + job_name + "](" + url_job_report + "/)**")
                         else:
                             section.title("# **JOB : " + job +"**")
                         section_text = "\n\n<ul>"

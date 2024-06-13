@@ -499,6 +499,7 @@ if __name__ == "__main__":
                 log_data["total"] = data[env]["Total"]
                 log_data["tests"] = parseTests(server,data[env]["Env"],analysis_json_url,data[env]["timeline"],log_data)
                 log_data["logs"] = []
+                log_data["log_files"] = []
                 log_envs.append(log_data)
 
     server = args.server
@@ -529,6 +530,11 @@ if __name__ == "__main__":
             log_name, log_pattern = log_map.split(":")
             server_log.extract_log(log_name, log_pattern)
 
+    teams = {}
+    for team_str in args.teams.split(","):
+        (env, webhook) = team_str.split("|", 1)
+        teams[env] = pymsteams.connectorcard(webhook)
+
     for log_env in log_envs:
         # if log_env["env"].find("qa1") < 0:
         #     continue
@@ -538,6 +544,7 @@ if __name__ == "__main__":
             jsonCfg = open(log_item["name"] + ".json", "r", encoding="utf-8")
             log_cfg = json.load(jsonCfg, strict=False)
             log_file_name = log_item["file"].replace("<env>",env_name)
+            log_env["log_files"].append(log_file_name)
             if hasattr(server_log,log_file_name) and getattr(server_log,log_file_name):
                 print("Processing " + log_file_name + "...")
                 logParser = LogParser(log_file_name,test_date,log_cfg)
@@ -560,46 +567,54 @@ if __name__ == "__main__":
 
                 if "fatal" in logParser.categories:
                     log_env["fatal"][log_item["name"]] = logParser.categories["fatal"]
+            elif hasattr(server_log,log_file_name) and not getattr(server_log,log_file_name):
+                team_text = "<H2 style='color:red;'> No " + log_file_name + " log found from " + log_env["start_time"] \
+                            + " to " + log_env["end_time"] + "! </H2>"
+                print(team_text)
+                teams[env].text(team_text)
+                teams[env].send()
+                teams[env].payload.clear()
 
-        mainLog = log_env.pop("main")
+        if "main" in log_env:
+            mainLog = log_env.pop("main")
 
-        log_env_logs = log_env.pop("logs")
+            log_env_logs = log_env.pop("logs")
 
-        log_env["duplicated"] = {}
-        for scenario in log_env["tests"]:
-            scenario_data = log_env["tests"][scenario]
-            if "duplicated" in scenario_data:
-                log_env["duplicated"][scenario] = scenario_data
-        for logParser in log_env_logs:
-            log_env["errors"][logParser.name] = logParser.categories
-            for error in logParser.error_list:
-                error["log_file"] = logParser.name
-                if mainLog.key in error:
-                    session = None
-                    if error[mainLog.key] in mainLog.sessions:
-                        key_sessions = mainLog.sessions[error[mainLog.key]]
-                        mainSession = mainLog.getSession(error[mainLog.key],error["log_time"])
-                        if mainSession and "end_time" in mainSession and mainSession["end_time"] > error["log_time"]:
-                            session = mainSession
-                    if session:
-                        if "errors" not in session:
-                            session["errors"] = {}
-                        if logParser.name not in session["errors"]:
-                            session["errors"][logParser.name] = {}
-                        session["errors"][logParser.name][error["id"]] = error
-                        if "scenario" in session:
-                            scenario_name = session["scenario"]
-                            addSession(logParser, scenario_name, log_env["tests"],error)
-                    elif error[mainLog.key] in log_env["users"]:
-                        user = error[mainLog.key]
-                        users = log_env["users"][error[mainLog.key]]
-                        for start_time in users:
-                            log_time = error["log_time"].replace("T", " ")
-                            if log_time > start_time and log_time < users[start_time]["end_time"]:
-                                scenario_name = users[start_time]["scenario"]
+            log_env["duplicated"] = {}
+            for scenario in log_env["tests"]:
+                scenario_data = log_env["tests"][scenario]
+                if "duplicated" in scenario_data:
+                    log_env["duplicated"][scenario] = scenario_data
+            for logParser in log_env_logs:
+                log_env["errors"][logParser.name] = logParser.categories
+                for error in logParser.error_list:
+                    error["log_file"] = logParser.name
+                    if mainLog.key in error:
+                        session = None
+                        if error[mainLog.key] in mainLog.sessions:
+                            key_sessions = mainLog.sessions[error[mainLog.key]]
+                            mainSession = mainLog.getSession(error[mainLog.key],error["log_time"])
+                            if mainSession and "end_time" in mainSession and mainSession["end_time"] > error["log_time"]:
+                                session = mainSession
+                        if session:
+                            if "errors" not in session:
+                                session["errors"] = {}
+                            if logParser.name not in session["errors"]:
+                                session["errors"][logParser.name] = {}
+                            session["errors"][logParser.name][error["id"]] = error
+                            if "scenario" in session:
+                                scenario_name = session["scenario"]
                                 addSession(logParser, scenario_name, log_env["tests"],error)
+                        elif error[mainLog.key] in log_env["users"]:
+                            user = error[mainLog.key]
+                            users = log_env["users"][error[mainLog.key]]
+                            for start_time in users:
+                                log_time = error["log_time"].replace("T", " ")
+                                if log_time > start_time and log_time < users[start_time]["end_time"]:
+                                    scenario_name = users[start_time]["scenario"]
+                                    addSession(logParser, scenario_name, log_env["tests"],error)
 
-            logParser.dumpSessions()
+                logParser.dumpSessions()
         #     error_file = open(logParser.name + "/categories.json","r",encoding="utf-8")
         #     log_env["errors"][logParser.name] = json.load(error_file)
         #     error_file.close()
@@ -608,13 +623,9 @@ if __name__ == "__main__":
         # log_env["errors"][mainLog.name] = json.load(main_error)
         # main_error.close()
 
-        log_env["errors"][mainLog.name] = mainLog.categories
-        mainLog.dumpSessions()
+            log_env["errors"][mainLog.name] = mainLog.categories
+            mainLog.dumpSessions()
 
-    teams = {}
-    for team_str in args.teams.split(","):
-        (env, webhook) = team_str.split("|", 1)
-        teams[env] = pymsteams.connectorcard(webhook)
 
     messages = {}
     for env in teams:
