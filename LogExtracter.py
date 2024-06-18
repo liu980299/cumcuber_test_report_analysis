@@ -4,7 +4,7 @@ from time import sleep
 import SSHLibrary
 import argparse,hashlib
 import datetime,requests
-import zipfile,jenkins,json
+import zipfile,jenkins,json,gzip,shutil
 from LogParser import LogParser
 import pymsteams
 
@@ -30,7 +30,7 @@ class ServerLog:
         log_name = log_name.replace("<date>",self.test_date)
         self.log_file = log_name + ".log"
         print("Extracting " + self.log_file +"...")
-        self.zip_file = log_name + ".zip"
+        self.zip_file = log_name + ".gz"
 
         if (os.path.exists(self.zip_file)):
             os.remove(self.zip_file)
@@ -53,10 +53,15 @@ class ServerLog:
             print(ret)
         else:
             try:
-                zipCommand = "zip " + self.zip_file + " " +self.log_file
+                zipCommand = "gzip -c " + self.log_file + " >" +self.zip_file
                 self.sshclient.execute_command(zipCommand)
                 self.sshclient.get_file( self.zip_file)
-                zipfile.ZipFile(self.zip_file, "r").extract(self.log_file)
+                with gzip.open(self.zip_file, 'rb') as f_in:
+                    with open(self.log_file, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                        f_in.close()
+                        f_out.close()
+                # zipfile.ZipFile(self.zip_file, "r").extract(self.log_file)
                 setattr(self,self.log_file,True)
                 return True
             except Exception as e:
