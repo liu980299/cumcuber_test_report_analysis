@@ -740,11 +740,10 @@ if __name__ == "__main__":
                         print(e)
                         messages[env] = teams[env].payload
 
-
-    log_result = open("log_analysis.json","w",encoding="utf-8")
-    json.dump(log_envs,log_result,indent=4)
-    log_result.close()
-
-    zipfile.ZipFile("log_analysis.zip","w",zipfile.ZIP_DEFLATED,compresslevel=9).write("log_analysis.json")
-
-    os.remove("log_analysis.json")
+    for log_env in log_envs:
+        log_analysis_file = log_env["env"] + "_log_analysis.json"
+        log_result = open(log_analysis_file,"w",encoding="utf-8")
+        json.dump(log_env,log_result,indent=4)
+        log_result.close()
+        zipfile.ZipFile(log_env["env"] + "_log_analysis.zip","w",zipfile.ZIP_DEFLATED,compresslevel=9).write(log_analysis_file)
+        os.remove(log_env["env"] + "_log_analysis.json")
