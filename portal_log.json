@@ -454,8 +454,9 @@
                     }
                 },
                 "include": {
-                    "must": [
-                        "[m "
+                    "option": [
+                        "[m ",
+						"app.containers.App.logger"
                     ]
                 }
             }
@@ -564,7 +565,8 @@
                 "\n"
             ],
             "selector": {
-                "[m ": 1
+                "[m ": 1,
+				"app.containers.App.logger:":1
             },
             "splitter": ":"
         },
