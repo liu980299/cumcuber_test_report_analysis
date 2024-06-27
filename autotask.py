@@ -354,7 +354,7 @@ if __name__ == "__main__":
                 if scenario_item["changed"]:
                     teams_message["text"] += "\n\n- [{0}]({1})".format(scenario,scenario_item["work_url"])
 
-                    if "new_comment" in scenario_item and scenario_item["new_comment"]:
+                    if "new_comment" in scenario_item and scenario_item["new_comment"] and "content" in scenario_item["new_comment"]:
                         teams_message["text"] += " --" + scenario_item["new_comment"]["content"]
                         new_comment = scenario_item["new_comment"]
                         if "comments" in scenario_item:
